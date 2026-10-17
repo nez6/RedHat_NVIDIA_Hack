@@ -81,50 +81,40 @@ Docker / NVIDIA Container Toolkit (for vLLM)
 
 NVIDIA GPU Instance (via Brev)
 
-Installation & Execution
+### Installation & Execution
 
-Clone the repository:
+1. Clone the repository:
 
-Bash
+   ```bash
+   git clone https://github.com/nez6/RedHat_NVIDIA_Hack.git
+   cd RedHat_NVIDIA_Hack
+   ```
 
+2. Set up a virtual environment:
 
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
+3. Install dependencies:
 
-git clone [https://github.com/your-username/estatepulse-ai.git](https://github.com/your-username/estatepulse-ai.git)
-cd estatepulse-ai
-Set up a virtual environment:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Bash
+4. Start the vLLM server (Brev instance):
 
+   ```bash
+   vllm serve nvidia/Nemotron-3.5-Lightning --port 8000
+   ```
 
+5. Run the application:
 
+   ```bash
+   streamlit run app.py
+   ```
 
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-Install dependencies:
-
-Bash
-
-
-
-
-pip install -r requirements.txt
-Start the vLLM Server (Brev Instance):
-
-Bash
-
-
-
-
-python -m venv_serving --model nvidia/Nemotron-3.5-Lightning --port 8000
-Run the Application:
-
-Bash
-
-
-
-
-streamlit run app.py
-License
+## License
 
 Distributed under the MIT License. Feel free to modify and build upon this project.
