@@ -1,4 +1,3 @@
-# RedHat_NAVIDIA_Hack
 # RedHat_NAVIDIA_Hack_a_Thon_Track_3_Tool-Calling
 
 # EstatePulse AI
@@ -82,54 +81,45 @@ Docker / NVIDIA Container Toolkit (for vLLM)
 
 NVIDIA GPU Instance (via Brev)
 
-Installation & Execution
+### Installation & Execution
 
-Clone the repository:
+1. Clone the repository:
 
-Bash
+   ```bash
+   git clone https://github.com/nez6/RedHat_NVIDIA_Hack.git
+   cd RedHat_NVIDIA_Hack
+   ```
 
+2. Set up a virtual environment:
 
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
+3. Install dependencies:
 
-git clone [https://github.com/your-username/estatepulse-ai.git](https://github.com/your-username/estatepulse-ai.git)
-cd estatepulse-ai
-Set up a virtual environment:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Bash
+4. Start the vLLM server with Nemotron 3.5 Lightning (Brev instance, FP8 on a 48 GB GPU):
 
+   ```bash
+   ./start_nemotron.sh        # wraps: vllm serve nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16 --quantization fp8 ...
+   ```
 
+5. Run the application (FastAPI + web UI on port 8501):
 
+   ```bash
+   ./run_app.sh
+   ```
 
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-Install dependencies:
+   Or run the whole stack in containers: `docker compose up -d` (see **Docker** below).
 
-Bash
-
-
-
-
-pip install -r requirements.txt
-Start the vLLM Server (Brev Instance):
-
-Bash
-
-
-
-
-python -m venv_serving --model nvidia/Nemotron-3.5-Lightning --port 8000
-Run the Application:
-
-Bash
-
-
-
-
-streamlit run app.py
-License
+## License
 
 Distributed under the MIT License. Feel free to modify and build upon this project.
-
 
 ---
 
