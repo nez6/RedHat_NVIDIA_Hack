@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DreamHome AI</title>
+<style>
+:root{
+  --bg:#f6f5f1; --panel:#ffffff; --ink:#1d1f1c; --muted:#6b6f68; --line:#e4e2db;
+  --accent:#76b900; --accent-ink:#3d6400; --warn:#c2410c; --chip:#eef2e6;
+  --h0:#f3ece4; --h1:#e9efd9; --h2:#cfe2a6; --h3:#a7cf5f; --h4:#76b900;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#111310; --panel:#1a1d18; --ink:#e9ebe5; --muted:#9aa093; --line:#2c3029;
+  --accent:#8fd400; --accent-ink:#b9ec5a; --chip:#232a1b;
+  --h0:#2a2320; --h1:#232b1c; --h2:#334a17; --h3:#4f7514; --h4:#6ea30c;
+}}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:18px;margin:0;letter-spacing:-.01em} header .tag{color:var(--muted);font-size:13px}
+#health{margin-left:auto;font:12px var(--mono);padding:4px 10px;border-radius:99px;background:var(--chip)}
+#health.bad{color:var(--warn)}
+main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px;max-width:1500px;margin:0 auto}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+textarea,input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:110px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-size:12px;user-select:none}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#102000}
+button.go{margin-top:14px;width:100%;padding:11px;border:0;border-radius:10px;background:var(--accent);color:#102000;font-weight:650;font-size:15px;cursor:pointer}
+button.go:disabled{opacity:.55;cursor:wait}
+.w{display:grid;grid-template-columns:96px 1fr 22px;align-items:center;gap:8px;margin:6px 0;font-size:13px}
+.w input{padding:0} .w b{font:12px var(--mono);text-align:right}
+.crew{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+@media (max-width:1100px){.crew{grid-template-columns:repeat(2,1fr)}}
+.agent{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--panel);position:relative}
+.agent .n{font-weight:650;font-size:13px} .agent .r{font-size:11.5px;color:var(--muted)}
+.agent .s{margin-top:6px;font:11px var(--mono);color:var(--muted)}
+.agent.run{border-color:var(--accent)} .agent.run .s{color:var(--accent-ink)}
+.agent.done .s{color:var(--accent-ink)} .agent.fb .s{color:var(--warn)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--line);margin-right:6px;vertical-align:1px}
+.run .dot{background:var(--accent);animation:p 1s infinite} .done .dot{background:var(--accent)} .fb .dot{background:var(--warn)}
+@keyframes p{50%{opacity:.25}}
+.matrix{overflow-x:auto}
+table{border-collapse:separate;border-spacing:3px;width:100%;min-width:640px}
+th,td{padding:8px 6px;text-align:center;font-size:13px}
+thead th{font-weight:600;vertical-align:bottom}
+thead th .addr{font-weight:650} thead th .sub{font-size:11px;color:var(--muted);font-weight:400}
+tbody th{text-align:left;font-weight:500;white-space:nowrap}
+tbody th small{color:var(--muted);font:11px var(--mono);margin-left:6px}
+td.c{border-radius:6px;font:12.5px var(--mono)}
+tr.total td{font-weight:700;font-size:14px;border-top:2px solid var(--line)}
+th.rank1{box-shadow:inset 0 3px 0 var(--accent)}
+.rec{white-space:pre-wrap;line-height:1.55;font-size:14.5px}
+.empty{color:var(--muted);padding:30px;text-align:center}
+.homes{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.home{border:1px solid var(--line);border-radius:10px;padding:12px}
+.home .p{font-size:18px;font-weight:700} .home .meta{color:var(--muted);font-size:12px}
+.home .f{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px} .home .f span{font-size:11px;background:var(--chip);padding:2px 7px;border-radius:99px}
+.stack{display:grid;gap:16px}
+#log{font:11.5px/1.5 var(--mono);max-height:260px;overflow:auto;background:var(--bg);border-radius:8px;padding:10px;border:1px solid var(--line)}
+#log .a{color:var(--accent-ink);font-weight:600} #log .fb{color:var(--warn)}
+.foot{color:var(--muted);font-size:11.5px;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>DreamHome AI</h1><span class="tag">a crew of Nemotron agents that finds your home in the NC Triangle</span>
+  <span id="health">checking Nemotron…</span>
+</header>
+<main>
+  <aside class="card">
+    <h2>Describe your dream home</h2>
+    <textarea id="dream">We're a family of four, both work at RTP. Want a quiet, safe neighborhood with great schools, a fenced yard for the dog and a home office. Budget around $550k, household income $165k.</textarea>
+    <div class="row2">
+      <div><label>Max price ($)</label><input id="max_price" type="number" placeholder="from text"></div>
+      <div><label>Annual income ($)</label><input id="annual_income" type="number" placeholder="from text"></div>
+      <div><label>Min beds</label><input id="min_beds" type="number" min="0" placeholder="any"></div>
+      <div><label>Down payment %</label><input id="down_payment_pct" type="number" value="20"></div>
+    </div>
+    <label>Commute to</label><select id="commute_destination"><option value="">let the agent decide</option></select>
+    <label>Cities (optional)</label><div class="chips" id="cities"></div>
+    <h2 style="margin-top:18px">Criteria weights</h2>
+    <div id="weights"></div>
+    <div class="foot">Sliders re-rank instantly. Leave them untouched and the Concierge agent sets them from your description.</div>
+    <button class="go" id="go">Find my dream home</button>
+  </aside>
+
+  <section class="stack">
+    <div class="crew" id="crew"></div>
+    <div class="card"><h2>Decision matrix</h2><div class="matrix" id="matrix"><div class="empty">Run the crew to see your top homes scored side by side.</div></div></div>
+    <div class="card"><h2>Matchmaker's recommendation</h2><div class="rec" id="rec"><span class="empty" style="padding:0">—</span></div></div>
+    <div class="card"><h2>Shortlist</h2><div class="homes" id="homes"></div></div>
+    <div class="card"><h2>Agent telemetry</h2><div id="log"></div>
+      <div class="foot">Demo listings and neighborhood stats are synthetic sample data. Payment figures are estimates, not financial advice.</div></div>
+  </section>
+</main>
+<script>
+const CREW=[["Concierge","Turns your words into a profile"],["Listings Scout","Searches the housing DB"],["Neighborhood Analyst","Safety, schools, commute"],["Finance Advisor","Monthly cost & affordability"],["Matchmaker","Explains the winner"]];
+const LABEL={affordability:"Affordability",safety:"Safety",schools:"Schools",commute:"Commute",space:"Space",features:"Must-haves",value:"Value"};
+let state={criteria:Object.keys(LABEL),weights:{},touched:false,ids:[],profile:null,rows:[]};
+const $=id=>document.getElementById(id);
+const fmt=n=>"$"+Math.round(n).toLocaleString();
+
+function crewUI(){ $("crew").innerHTML=CREW.map(([n,r])=>`<div class="agent" data-a="${n}"><div class="n"><span class="dot"></span>${n}</div><div class="r">${r}</div><div class="s">idle</div></div>`).join(""); }
+function setAgent(n,cls,txt){const el=document.querySelector(`[data-a="${n}"]`); if(!el)return; el.className="agent "+cls; el.querySelector(".s").textContent=txt;}
+function weightsUI(w){
+  $("weights").innerHTML=state.criteria.map(c=>`<div class="w"><span>${LABEL[c]}</span><input type="range" min="0" max="5" step="1" value="${w[c]??3}" data-c="${c}"><b>${w[c]??3}</b></div>`).join("");
+  $("weights").querySelectorAll("input").forEach(i=>i.oninput=e=>{state.touched=true; state.weights[i.dataset.c]=+i.value; i.nextElementSibling.textContent=i.value; rescore();});
+}
+function heat(v){return v>=85?"var(--h4)":v>=70?"var(--h3)":v>=55?"var(--h2)":v>=40?"var(--h1)":"var(--h0)"}
+function matrixUI(rows){
+  state.rows=rows; const top=rows.slice(0,5);
+  if(!top.length){$("matrix").innerHTML='<div class="empty">No homes matched — widen the budget or cities.</div>';return;}
+  const w=state.weights;
+  let h="<table><thead><tr><th></th>"+top.map((r,i)=>`<th class="${i==0?'rank1':''}"><div class="sub">#${i+1}</div><div class="addr">${r.listing.address}</div><div class="sub">${r.listing.neighborhood} · ${fmt(r.listing.price)}</div></th>`).join("")+"</tr></thead><tbody>";
+  for(const c of state.criteria){
+    h+=`<tr><th>${LABEL[c]}<small>×${w[c]??0}</small></th>`+top.map(r=>{const v=r.scores[c];return `<td class="c" style="background:${heat(v)};color:${v>=70?'#0d1a00':'inherit'}">${v}</td>`}).join("")+"</tr>";
+  }
+  h+=`<tr class="total"><th>Fit score</th>`+top.map(r=>`<td>${r.total}</td>`).join("")+"</tr></tbody></table>";
+  $("matrix").innerHTML=h;
+  $("homes").innerHTML=rows.slice(0,9).map((r,i)=>{const L=r.listing,N=r.neighborhood,F=r.finance;return `<div class="home"><div class="meta">#${i+1} · fit ${r.total}</div><div class="p">${fmt(L.price)}</div><div>${L.address}, ${L.city}</div><div class="meta">${L.beds} bd · ${L.baths} ba · ${L.sqft.toLocaleString()} sqft · ${L.property_type}</div><div class="meta">≈ ${fmt(F.monthly_total)}/mo${F.housing_ratio_pct?` (${F.housing_ratio_pct}% of income)`:""} · ${N.commute_minutes} min to ${N.commute_to}</div><div class="f">${L.features.slice(0,5).map(f=>`<span>${f}</span>`).join("")}</div></div>`}).join("");
+}
+let rsT; function rescore(){ if(!state.ids.length)return; clearTimeout(rsT); rsT=setTimeout(async()=>{
+  const r=await fetch("api/rescore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:state.ids,profile:state.profile||{},weights:state.weights})}).then(r=>r.json()); matrixUI(r);},120);}
+function log(html){$("log").insertAdjacentHTML("beforeend",html+"<br>");$("log").scrollTop=1e9;}
+const t0={};
+function onEvent(e){
+  switch(e.type){
+    case "start": log(e.health.ok?`model <b>${e.health.model}</b> @ ${e.health.base_url}`:`<span class="fb">Nemotron unreachable — fallbacks active</span>`); setAgent("Concierge","run","thinking…"); break;
+    case "llm": setAgent(e.agent,"run",`LLM ${e.ms} ms${e.tool_calls.length?" → "+e.tool_calls.length+" tool call(s)":""}`); log(`<span class="a">${e.agent}</span> nemotron ${e.ms}ms ${e.tool_calls.join(", ")}`); break;
+    case "tool": log(`&nbsp;&nbsp;↳ ${e.tool}(${JSON.stringify(e.args)}) ${e.ms}ms → ${typeof e.result_preview=="string"?e.result_preview:JSON.stringify(e.result_preview)}`); break;
+    case "fallback": setAgent(e.agent,"fb","fallback: "+e.reason.slice(0,40)); log(`<span class="fb">${e.agent} fallback: ${e.reason}</span>`); break;
+    case "say": log(`<span class="a">${e.agent}</span> “${e.text}”`); break;
+    case "profile": state.profile=e.profile; if(!state.touched){state.weights={...e.profile.weights}; weightsUI(state.weights);} setAgent("Concierge","done",e.profile.summary?.slice(0,60)||"profile set"); setAgent("Listings Scout","run","searching…"); break;
+    case "shortlist": state.ids=e.ids; setAgent("Listings Scout","done",`${e.ids.length} candidates`); setAgent("Neighborhood Analyst","run","analysing…"); setAgent("Finance Advisor","run","analysing…"); break;
+    case "matrix": setAgent("Neighborhood Analyst","done","reports in"); setAgent("Finance Advisor","done","costs in"); setAgent("Matchmaker","run","writing…"); if(state.touched){rescore()}else{matrixUI(e.rows)} break;
+    case "recommendation": $("rec").textContent=e.text; setAgent("Matchmaker","done","done"); break;
+    case "done": log(`<b>pipeline finished in ${(e.ms/1000).toFixed(1)} s</b>`); break;
+    case "error": log(`<span class="fb">error: ${e.message}</span>`); break;
+  }
+}
+async function go(){
+  $("go").disabled=true; $("log").innerHTML=""; crewUI();
+  const form={}; ["max_price","annual_income","min_beds","down_payment_pct"].forEach(k=>{const v=$(k).value; if(v!=="")form[k]=+v;});
+  const cd=$("commute_destination").value; if(cd)form.commute_destination=cd;
+  const cities=[...document.querySelectorAll("#cities .chip.on")].map(c=>c.textContent); if(cities.length)form.cities=cities;
+  if(state.touched)form.weights=state.weights;
+  try{
+    const res=await fetch("api/match",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dream:$("dream").value,form})});
+    const rd=res.body.getReader(),dec=new TextDecoder(); let buf="";
+    for(;;){const {value,done}=await rd.read(); if(done)break; buf+=dec.decode(value,{stream:true}); let i; while((i=buf.indexOf("\n"))>=0){const line=buf.slice(0,i);buf=buf.slice(i+1); if(line.trim())onEvent(JSON.parse(line));}}
+  }catch(err){log(`<span class="fb">${err}</span>`)}
+  $("go").disabled=false;
+}
+(async()=>{
+  crewUI(); weightsUI({affordability:4,safety:4,schools:3,commute:3,space:3,features:3,value:2});
+  state.weights={affordability:4,safety:4,schools:3,commute:3,space:3,features:3,value:2};
+  $("go").onclick=go;
+  const m=await fetch("api/meta").then(r=>r.json());
+  $("cities").innerHTML=m.cities.map(c=>`<span class="chip">${c}</span>`).join("");
+  $("cities").querySelectorAll(".chip").forEach(c=>c.onclick=()=>c.classList.toggle("on"));
+  m.destinations.forEach(d=>$("commute_destination").insertAdjacentHTML("beforeend",`<option>${d}</option>`));
+  const h=await fetch("api/health").then(r=>r.json());
+  $("health").textContent=h.ok?"● "+h.model:"● Nemotron offline (fallback mode)"; $("health").className=h.ok?"":"bad";
+})();
+</script>
+</body>
+</html>

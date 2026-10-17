@@ -1,0 +1,11 @@
+# local env / runtime artifacts
+env/
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.log
+_out.txt
+match.ndjson
+untitled.py
+.env

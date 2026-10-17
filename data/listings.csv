@@ -1,0 +1,62 @@
+id,address,neighborhood,city,lat,lon,price,beds,baths,sqft,year_built,lot_acres,hoa_monthly,property_type,features,days_on_market
+1001,1244 Glenwood St,Five Points,Raleigh,35.81132,-78.65255,477000,3,2,1717,1989,0.0,85,Condo,mature trees|smart home,73
+1002,3178 Creek St,Five Points,Raleigh,35.81126,-78.6525,763000,5,4.5,2559,1996,0.3,150,Single Family,pool|hardwood floors|EV charger|home office|smart home|mature trees|updated kitchen,8
+1003,4817 Pine St,Five Points,Raleigh,35.81069,-78.65086,631000,4,3.5,2091,1948,0.12,85,Single Family,smart home|near greenway|updated kitchen|first-floor primary|finished basement,44
+1004,1164 Maple Way,Five Points,Raleigh,35.81372,-78.64315,687000,3,2,1859,1965,0.26,0,Single Family,sidewalks|fenced yard|smart home|solar panels|finished basement|first-floor primary,88
+1005,2825 Holly Ln,Oakwood,Raleigh,35.78679,-78.62387,424000,3,2.5,1581,1932,0.23,0,Single Family,walk-in closet|energy efficient|near greenway|home office,56
+1006,4719 Oak Ave,Oakwood,Raleigh,35.7847,-78.63209,497000,4,3.5,1883,1944,0.0,85,Townhouse,garage|near greenway|EV charger|solar panels,73
+1007,961 Magnolia St,Oakwood,Raleigh,35.78707,-78.62941,655000,4,3.5,2178,1986,0.18,45,Single Family,sidewalks|EV charger|pool|smart home,47
+1008,1774 Lake Way,Oakwood,Raleigh,35.78224,-78.62474,1078000,5,4,2939,2002,0.14,0,Single Family,sidewalks|near greenway|smart home|solar panels|home office|fenced yard,21
+1009,3297 Glenwood Ln,North Hills,Raleigh,35.84184,-78.64637,822000,5,5.5,3262,1991,0.55,0,Single Family,finished basement|smart home|updated kitchen|near greenway|pool,67
+1010,7801 Hillsborough Dr,North Hills,Raleigh,35.83327,-78.64001,657000,4,3.5,2120,1997,0.57,0,Single Family,first-floor primary|fenced yard|finished basement|home office|pool,79
+1011,6585 Holly Ln,North Hills,Raleigh,35.84189,-78.64864,591000,3,2,1837,1987,0.0,220,Townhouse,mature trees|updated kitchen|walk-in closet,21
+1012,1783 Dogwood Ln,Brier Creek,Raleigh,35.91378,-78.79088,198000,1,1,859,2005,0.0,150,Condo,energy efficient|solar panels|garage|near greenway,28
+1013,8464 Oak Ln,Brier Creek,Raleigh,35.91042,-78.78426,562000,5,5.5,2608,1983,0.46,0,Single Family,smart home|mature trees|solar panels|screened porch|fenced yard|sidewalks,20
+1014,791 Magnolia Ct,Brier Creek,Raleigh,35.90523,-78.79355,705000,5,5.5,3135,2005,0.54,45,Single Family,finished basement|open floor plan|screened porch,9
+1015,6528 Holly Dr,Southeast Raleigh,Raleigh,35.75316,-78.59415,434000,4,3.5,2568,2008,0.56,150,Single Family,sidewalks|solar panels|mature trees|home office,10
+1016,8547 Laurel Dr,Southeast Raleigh,Raleigh,35.75874,-78.59229,294000,3,2.5,1377,2004,0.58,0,Single Family,near greenway|EV charger|finished basement|fenced yard|first-floor primary|open floor plan,12
+1017,3844 Magnolia St,Southeast Raleigh,Raleigh,35.75625,-78.59737,302000,3,2.5,1689,2008,0.0,310,Townhouse,smart home|pool|sidewalks|walk-in closet,24
+1018,1551 Wade St,Southeast Raleigh,Raleigh,35.76173,-78.59444,486000,4,3,2588,2006,0.23,45,Single Family,mature trees|fenced yard|screened porch|garage,34
+1019,7402 Willow Dr,Cameron Village,Raleigh,35.79055,-78.66571,718000,4,3,1883,1982,0.11,150,Single Family,hardwood floors|energy efficient|open floor plan|solar panels,33
+1020,2389 Laurel Dr,Cameron Village,Raleigh,35.80071,-78.65261,983000,5,4,2624,2016,0.34,0,Single Family,smart home|hardwood floors|open floor plan|pool|EV charger|sidewalks,2
+1021,7404 Oak Dr,Cameron Village,Raleigh,35.79083,-78.66074,702000,3,3,2080,2007,0.39,150,Single Family,home office|sidewalks|EV charger|fenced yard|solar panels,71
+1022,9714 Maple Ln,Downtown Cary,Cary,35.78036,-78.78413,475000,4,4,2105,1992,0.18,0,Single Family,garage|fenced yard|screened porch|mature trees|home office|smart home|open floor plan,30
+1023,9413 Oak Way,Downtown Cary,Cary,35.78934,-78.77471,542000,4,3.5,1867,2016,0.51,0,Single Family,mature trees|smart home|solar panels|sidewalks|screened porch|walk-in closet|energy efficient,88
+1024,1248 Pine Way,Downtown Cary,Cary,35.78842,-78.77707,383000,2,2,1220,1999,0.0,220,Condo,home office|garage|finished basement|near greenway|solar panels|smart home|sidewalks,61
+1025,5535 Wade Way,Downtown Cary,Cary,35.79189,-78.78413,479000,3,2,1695,2004,0.28,0,Single Family,hardwood floors|home office|open floor plan|smart home|energy efficient|fenced yard,73
+1026,4844 Holly St,West Cary,Cary,35.77512,-78.86251,617000,4,3,2389,1993,0.32,150,Single Family,pool|open floor plan|hardwood floors|home office|finished basement|garage,58
+1027,8064 Laurel St,West Cary,Cary,35.76455,-78.8628,399000,3,3,1630,1998,0.0,85,Condo,smart home|screened porch|pool|first-floor primary|EV charger|near greenway|finished basement,88
+1028,4248 Creek St,West Cary,Cary,35.76829,-78.86202,533000,4,3.5,1951,1975,0.26,0,Single Family,pool|open floor plan|garage|sidewalks|first-floor primary|solar panels,76
+1029,7108 Oak Way,Apex Peakway,Apex,35.7304,-78.84399,387000,3,2,1606,2015,0.58,85,Single Family,smart home|updated kitchen|open floor plan|walk-in closet|EV charger|sidewalks,71
+1030,4362 Laurel Way,Apex Peakway,Apex,35.72782,-78.85027,558000,4,3,2671,1978,0.15,310,Single Family,mature trees|updated kitchen|hardwood floors|solar panels|sidewalks|first-floor primary,86
+1031,5331 Glenwood Dr,Apex Peakway,Apex,35.72813,-78.84889,373000,3,3.5,1672,1996,0.3,220,Single Family,open floor plan|finished basement|fenced yard|near greenway|EV charger|screened porch|home office,3
+1032,6649 Holly Ln,Wake Forest Historic,Wake Forest,35.98626,-78.50442,496000,4,3,2220,1998,0.34,0,Single Family,fenced yard|screened porch|finished basement|open floor plan,3
+1033,8658 Magnolia Way,Wake Forest Historic,Wake Forest,35.98222,-78.50446,578000,5,4,2290,2008,0.21,220,Single Family,finished basement|solar panels|smart home,59
+1034,8692 Hillsborough Ln,Wake Forest Historic,Wake Forest,35.97517,-78.50535,402000,3,3,2001,1983,0.41,310,Single Family,pool|fenced yard|hardwood floors,1
+1035,6981 Pine Dr,Wake Forest Historic,Wake Forest,35.97465,-78.51121,454000,4,3,2323,1990,0.29,0,Single Family,home office|garage|open floor plan|finished basement|updated kitchen,48
+1036,3728 Wade Dr,Durham Downtown,Durham,35.98774,-78.89702,557000,4,3.5,1773,2022,0.19,45,Single Family,hardwood floors|open floor plan|finished basement|near greenway,79
+1037,6544 Holly Way,Durham Downtown,Durham,36.00014,-78.89528,738000,4,3,2252,1978,0.59,0,Single Family,mature trees|home office|smart home|fenced yard,11
+1038,4684 Pine Dr,Durham Downtown,Durham,35.99272,-78.89284,266000,2,1.5,885,1999,0.0,150,Condo,sidewalks|EV charger|pool|garage|home office,72
+1039,6731 Maple Ln,Trinity Park,Durham,36.00056,-78.912,455000,3,3.5,1480,1982,0.27,0,Single Family,garage|mature trees|finished basement|walk-in closet|updated kitchen|sidewalks,8
+1040,6432 Wade Ln,Trinity Park,Durham,36.01304,-78.91088,612000,4,3.5,2220,2016,0.23,150,Single Family,fenced yard|garage|finished basement|home office|near greenway|first-floor primary|mature trees,64
+1041,7992 Lake Ave,Trinity Park,Durham,36.01568,-78.89886,758000,5,5.5,2640,2025,0.35,0,Single Family,EV charger|finished basement|mature trees|home office|updated kitchen|garage,10
+1042,9387 Wade Dr,Southpoint,Durham,35.90106,-78.94883,341000,4,3.5,1865,2004,0.47,85,Single Family,hardwood floors|energy efficient|screened porch,57
+1043,173 Poplar Ave,Southpoint,Durham,35.91045,-78.93837,290000,3,2,1422,1990,0.2,0,Single Family,sidewalks|home office|pool,6
+1044,5829 Hillsborough St,Southpoint,Durham,35.9029,-78.95074,200000,2,2,938,1986,0.0,220,Condo,screened porch|garage|pool|updated kitchen|hardwood floors|first-floor primary|mature trees,27
+1045,6787 Magnolia Ln,Southpoint,Durham,35.90762,-78.95053,120000,1,1.5,643,1994,0.0,45,Condo,home office|near greenway|smart home|energy efficient,69
+1046,6060 Hillsborough Ln,Chapel Hill Southern Village,Chapel Hill,35.88365,-79.06974,474000,3,2.5,1946,2022,0.0,310,Townhouse,mature trees|energy efficient|garage|smart home|walk-in closet,1
+1047,8365 Willow Ave,Chapel Hill Southern Village,Chapel Hill,35.87757,-79.07041,565000,3,3.5,2033,2024,0.09,0,Single Family,solar panels|walk-in closet|fenced yard|hardwood floors|sidewalks|EV charger|first-floor primary,22
+1048,3738 Laurel Ct,Chapel Hill Southern Village,Chapel Hill,35.88554,-79.05973,253000,1,1.5,740,2005,0.0,150,Condo,walk-in closet|EV charger,24
+1049,7566 Ridge Way,Carrboro,Carrboro,35.90872,-79.07368,774000,4,4,2318,1987,0.37,0,Single Family,updated kitchen|pool|walk-in closet,55
+1050,5974 Cedar Dr,Carrboro,Carrboro,35.90347,-79.07593,652000,5,4,2026,2006,0.31,0,Single Family,sidewalks|EV charger|near greenway|open floor plan|home office|mature trees|fenced yard,66
+1051,1895 Hillsborough Ave,Carrboro,Carrboro,35.91771,-79.07513,507000,3,2.5,1953,2023,0.0,310,Townhouse,solar panels|garage|hardwood floors|first-floor primary|mature trees,22
+1052,2741 Wade Way,Holly Springs,Holly Springs,35.64825,-78.83497,293000,3,2.5,1561,2005,0.22,0,Single Family,finished basement|updated kitchen|first-floor primary|garage|pool|fenced yard|open floor plan,34
+1053,7346 Glenwood Ave,Holly Springs,Holly Springs,35.65285,-78.82567,456000,4,3,2100,2000,0.22,150,Single Family,solar panels|first-floor primary|updated kitchen|walk-in closet|home office,38
+1054,2263 Poplar Ave,Holly Springs,Holly Springs,35.6528,-78.84027,385000,3,2.5,1701,1989,0.0,85,Townhouse,mature trees|energy efficient|first-floor primary|sidewalks|garage,7
+1055,2546 Holly St,Garner,Garner,35.70402,-78.61968,488000,5,4,2823,1983,0.4,0,Single Family,EV charger|solar panels|garage|sidewalks|walk-in closet|pool,86
+1056,513 Laurel Ave,Garner,Garner,35.7068,-78.62107,370000,3,3.5,1926,2013,0.0,310,Townhouse,finished basement|EV charger|garage|near greenway|sidewalks|screened porch,14
+1057,7722 Pine Way,Garner,Garner,35.71349,-78.61919,428000,4,4.5,2283,1979,0.11,0,Single Family,energy efficient|garage|walk-in closet|mature trees|open floor plan|first-floor primary,14
+1058,3968 Hillsborough Ave,Morrisville,Morrisville,35.82794,-78.82777,503000,4,3.5,2324,2010,0.59,310,Single Family,open floor plan|fenced yard|garage|smart home|solar panels,50
+1059,2910 Dogwood St,Morrisville,Morrisville,35.81643,-78.83129,586000,5,4.5,3032,1976,0.46,0,Single Family,hardwood floors|open floor plan|walk-in closet|energy efficient|sidewalks|home office|mature trees,21
+1060,6388 Magnolia Ave,Morrisville,Morrisville,35.81929,-78.83121,499000,3,3,2000,2019,0.1,0,Single Family,first-floor primary|open floor plan|fenced yard|sidewalks|mature trees|walk-in closet|energy efficient,5
+1061,4305 Ridge St,Morrisville,Morrisville,35.82745,-78.82711,185000,1,1,710,1988,0.0,150,Condo,updated kitchen|mature trees|screened porch|garage|EV charger,42
