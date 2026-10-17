@@ -1,4 +1,4 @@
-"""Run the ingestion pipeline: python -m pipeline.run [--strict] [--only fred|police]
+"""Run the ingestion pipeline: python -m pipeline.run [--strict] [--only fred|police|environment]
 
 Fetch -> validate -> transform -> atomically write data/live/*.json.
 A source that fails or breaks its contract keeps its last good snapshot; the manifest records why.
@@ -7,7 +7,7 @@ import argparse, datetime as dt, json, os, sys, time
 
 from . import transform, validate
 from .config import DATA_DIR, LIVE_DIR, LOOKBACK_DAYS
-from .sources import fred, police
+from .sources import environment, fred, police
 
 
 def _write(name, obj):
@@ -59,14 +59,25 @@ def run_police(manifest):
                                           "secs": round(time.time() - t0, 2)})
 
 
+def run_environment(manifest):
+    t0 = time.time()
+    hoods = _hoods()
+    env, errors = transform.environment_profiles(hoods, environment.fetch_neighborhood)
+    problems = validate.check_environment(env, [h["name"] for h in hoods])
+    _write("environment.json", {"fetched_at": manifest["run_at"], "neighborhoods": env})
+    manifest["sources"]["environment"] = {"status": "ok" if not errors else "partial", "errors": errors,
+                                          "warnings": problems, "neighborhoods": len(env), "secs": round(time.time() - t0, 2)}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--strict", action="store_true", help="exit 1 if any source fails (for CI)")
-    ap.add_argument("--only", choices=["fred", "police"])
+    ap.add_argument("--only", choices=["fred", "police", "environment"])
+    ap.add_argument("--no-databricks", action="store_true", help="skip the Unity Catalog sync even if configured")
     args = ap.parse_args(argv)
     manifest = {"run_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "sources": {}}
     failed = False
-    for name, fn in (("fred", run_fred), ("police", run_police)):
+    for name, fn in (("fred", run_fred), ("police", run_police), ("environment", run_environment)):
         if args.only and args.only != name:
             continue
         try:
@@ -74,6 +85,14 @@ def main(argv=None):
         except Exception as e:  # keep last good snapshot
             failed = True
             manifest["sources"].setdefault(name, {}).update({"status": "failed", "error": str(e)[:300]})
+    if not args.only and not args.no_databricks:
+        from . import databricks_sink
+        if databricks_sink.configured():
+            try:
+                manifest["sources"]["databricks"] = {"status": "ok", **databricks_sink.sync()}
+            except Exception as e:
+                failed = True
+                manifest["sources"]["databricks"] = {"status": "failed", "error": str(e)[:300]}
     prev = {}
     try:
         with open(os.path.join(LIVE_DIR, "manifest.json")) as f:

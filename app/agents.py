@@ -3,18 +3,19 @@
 Crew:
   1. Concierge      - turns the buyer's free-text dream into a structured profile + weights (tool: set_buyer_profile)
   2. Listings Scout - searches the housing DB (tool: search_listings)
-  3. Neighborhood   - safety / schools / commute per shortlisted home (tool: neighborhood_report)
-  4. Finance        - monthly cost + affordability per home (tool: affordability)
+  3. 10 metric agents (app/metric_agents.py), one per homebuyer-matrix metric, run in parallel
+  4. Jev decision layer - calibrated safety / lifestyle fit / verdict per home
   5. Matchmaker     - reads the deterministic decision matrix and explains the top picks
 
 Every agent degrades gracefully: if Nemotron is unreachable or returns bad tool calls,
 a deterministic fallback keeps the pipeline running (and the UI log says so).
 """
-import json, os, re, time
-from concurrent.futures import ThreadPoolExecutor
+import json, os, re, threading, time
 from openai import OpenAI
 
-from . import jev as J, live, tools as T
+from pipeline import databricks_sink as DBX
+
+from . import jev as J, live, metric_agents as MA, metrics as M, tools as T
 
 BASE_URL = os.getenv("NEMOTRON_BASE_URL", "http://localhost:8000/v1")
 API_KEY = os.getenv("NEMOTRON_API_KEY", "EMPTY")
@@ -89,7 +90,7 @@ def run_agent(name, system, user, tool_names, emit, max_steps=6, capture=None):
 
 
 # ---------------- individual agents ----------------
-DEFAULT_WEIGHTS = {"affordability": 4, "safety": 4, "schools": 3, "commute": 3, "space": 3, "features": 3, "value": 2, "fit": 4}
+DEFAULT_WEIGHTS = dict(M.DEFAULT_WEIGHTS)
 
 
 def concierge(dream, form, emit):
@@ -151,30 +152,6 @@ def scout(profile, emit):
     return ids
 
 
-def _analyst(name, tool, system, ids, profile, emit):
-    user = (f"Listing ids: {ids}. Buyer: income={profile.get('annual_income')}, "
-            f"down_payment_pct={profile.get('down_payment_pct', 20)}, commute_destination={profile.get('commute_destination', 'downtown raleigh')}. "
-            f"Call {tool} for EVERY listing id (you may call it several times in one turn), then give a 2-sentence takeaway "
-            "naming the strongest and weakest listing ids.")
-    try:
-        text, _ = run_agent(name, system, user, [tool], emit, max_steps=4)
-        if text:
-            emit({"type": "say", "agent": name, "text": text})
-    except Exception as e:
-        emit({"type": "fallback", "agent": name, "reason": str(e)[:160]})
-
-
-def neighborhood(ids, profile, emit):
-    _analyst("Neighborhood Analyst", "neighborhood_report",
-             "You are the Neighborhood Analyst. You judge safety, schools, walkability and commute.", ids, profile, emit)
-
-
-def finance(ids, profile, emit):
-    _analyst("Finance Advisor", "affordability",
-             "You are the Finance Advisor. You judge monthly cost, housing ratio (<28% is healthy) and price vs area median. "
-             "This is an estimate, not financial advice.", ids, profile, emit)
-
-
 def matchmaker(rows, profile, emit):
     top = [{"id": r["listing"]["id"], "address": r["listing"]["address"], "neighborhood": r["listing"]["neighborhood"],
             "price": r["listing"]["price"], "total": r["total"], "scores": r["scores"],
@@ -224,12 +201,12 @@ def run_pipeline(dream, form, emit):
     emit({"type": "start", "health": health(), "data": live.status(), "jev_enabled": J.enabled()})
     profile = concierge(dream, form, emit)
     ids = scout(profile, emit)
-    with ThreadPoolExecutor(2) as ex:  # Neighborhood + Finance run in parallel on Nemotron
-        f1 = ex.submit(neighborhood, ids, profile, emit)
-        f2 = ex.submit(finance, ids, profile, emit)
-        f1.result(), f2.result()
+    MA.run_all(ids, profile, emit, run_agent)  # 10 metric agents in parallel on Nemotron
     jev = jev_layer(ids, profile, emit)
     rows = T.score_matrix(ids, profile, profile["weights"], jev)
+    if DBX.configured():  # governance: audit every AI recommendation in Unity Catalog (non-blocking)
+        engine = "jev" if any(v.get("engine") == "jev" for v in jev.values()) else "rules"
+        threading.Thread(target=DBX.log_decision, args=(_MODEL or "unknown", engine, profile, rows), daemon=True).start()
     emit({"type": "matrix", "criteria": T.CRITERIA, "rows": rows, "weights": profile["weights"], "jev": jev})
     emit({"type": "recommendation", "text": matchmaker(rows, profile, emit)})
     emit({"type": "done", "ms": int((time.time() - t0) * 1000)})

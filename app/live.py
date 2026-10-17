@@ -41,6 +41,20 @@ def safety(neighborhood):
     return (d.get("neighborhoods") or {}).get(neighborhood)
 
 
+def environment(neighborhood):
+    d = _load("environment.json") or {}
+    return (d.get("neighborhoods") or {}).get(neighborhood)
+
+
+DURHAM_MSA = {"Durham", "Chapel Hill", "Carrboro"}
+
+
+def hpi_yoy(city):
+    """FHFA house-price index YoY % for the listing's metro (Raleigh-Cary or Durham-Chapel Hill MSA)."""
+    s = fred_series("durham_hpi" if city in DURHAM_MSA else "raleigh_hpi")
+    return (s or {}).get("yoy_pct"), (s or {}).get("series_id")
+
+
 def status():
     m = _load("manifest.json") or {}
     rate, src = mortgage_rate()
@@ -50,4 +64,8 @@ def status():
             "mortgage_30y": rate, "mortgage_source": src,
             "raleigh_hpi_yoy": hpi.get("yoy_pct"),
             "police_lookback_days": s.get("lookback_days"),
-            "live_safety_neighborhoods": len(s.get("neighborhoods") or {})}
+            "live_safety_neighborhoods": len(s.get("neighborhoods") or {}),
+            "live_environment_neighborhoods": len((_load("environment.json") or {}).get("neighborhoods") or {}),
+            "databricks_configured": all(os.getenv(k) for k in ("DATABRICKS_HOST", "DATABRICKS_TOKEN", "DATABRICKS_WAREHOUSE_ID")),
+            "databricks_catalog": os.getenv("DATABRICKS_CATALOG", "workspace"),
+            "databricks_last_sync": (m.get("sources", {}).get("databricks") or {}).get("run_id")}

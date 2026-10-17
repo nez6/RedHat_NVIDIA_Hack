@@ -75,3 +75,32 @@ def jev_state(name, prof, days):
             f"{bt.get('CRIMES AGAINST PERSONS', 0)} against persons, {bt.get('CRIMES AGAINST PROPERTY', 0)} property, "
             f"{bt.get('CRIMES AGAINST SOCIETY', 0)} society. Most common: {top}. "
             f"Severity-weighted density {prof['weighted_density']}/sq mi.")
+
+
+FLOOD_PENALTY = {"A": 40, "AE": 40, "AH": 35, "AO": 35, "AR": 30, "A99": 30, "V": 45, "VE": 45}
+
+
+def environment_index(env):
+    """0-100 (higher = lower environmental risk): flood zone, 30-day AQI, extreme-weather days."""
+    flood = env.get("flood") or {}
+    zone = (flood.get("zone") or "").upper()
+    pen = FLOOD_PENALTY.get(zone, 0)
+    if not pen and "0.2 PCT" in (flood.get("subtype") or "").upper():
+        pen = 15  # 500-year floodplain
+    aqi = env.get("aqi_30d")
+    pen += max(0.0, (aqi or 0) - 30) * 0.7
+    w = env.get("weather_12m") or {}
+    pen += min(20, 0.5 * w.get("heat_days", 0) + 2 * w.get("heavy_rain_days", 0) + 1 * w.get("high_wind_days", 0))
+    return int(max(0, min(100, round(100 - pen))))
+
+
+def environment_profiles(hoods, fetch):
+    """fetch(h) -> raw env dict. Failures are recorded per neighborhood, never fatal."""
+    out, errors = {}, {}
+    for h in hoods:
+        try:
+            env = fetch(h)
+            out[h["name"]] = {**env, "environment_index": environment_index(env), "source": "fema_nfhl+open_meteo"}
+        except Exception as e:
+            errors[h["name"]] = str(e)[:160]
+    return out, errors

@@ -1,0 +1,293 @@
+{
+ "fetched_at": "2026-10-17T23:07:23+00:00",
+ "neighborhoods": {
+  "Five Points": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 47.9,
+   "weather_12m": {
+    "heat_days": 17,
+    "heavy_rain_days": 1,
+    "high_wind_days": 2,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 75,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Oakwood": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 48.5,
+   "weather_12m": {
+    "heat_days": 17,
+    "heavy_rain_days": 1,
+    "high_wind_days": 2,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 75,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "North Hills": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 47.9,
+   "weather_12m": {
+    "heat_days": 17,
+    "heavy_rain_days": 1,
+    "high_wind_days": 2,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 75,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Brier Creek": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 47.9,
+   "weather_12m": {
+    "heat_days": 17,
+    "heavy_rain_days": 1,
+    "high_wind_days": 0,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 77,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Southeast Raleigh": {
+   "flood": {
+    "zone": "AE",
+    "subtype": "FLOODWAY",
+    "sfha": true
+   },
+   "aqi_30d": 43.8,
+   "weather_12m": {
+    "heat_days": 19,
+    "heavy_rain_days": 1,
+    "high_wind_days": 0,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 39,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Cameron Village": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 48.5,
+   "weather_12m": {
+    "heat_days": 17,
+    "heavy_rain_days": 1,
+    "high_wind_days": 2,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 75,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Downtown Cary": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 48.5,
+   "weather_12m": {
+    "heat_days": 13,
+    "heavy_rain_days": 1,
+    "high_wind_days": 2,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 77,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "West Cary": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 48.5,
+   "weather_12m": {
+    "heat_days": 14,
+    "heavy_rain_days": 1,
+    "high_wind_days": 0,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 78,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Apex Peakway": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 48.5,
+   "weather_12m": {
+    "heat_days": 14,
+    "heavy_rain_days": 1,
+    "high_wind_days": 0,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 78,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Wake Forest Historic": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 44.0,
+   "weather_12m": {
+    "heat_days": 16,
+    "heavy_rain_days": 1,
+    "high_wind_days": 1,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 79,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Durham Downtown": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 47.9,
+   "weather_12m": {
+    "heat_days": 16,
+    "heavy_rain_days": 0,
+    "high_wind_days": 1,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 78,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Trinity Park": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 47.9,
+   "weather_12m": {
+    "heat_days": 16,
+    "heavy_rain_days": 0,
+    "high_wind_days": 1,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 78,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Southpoint": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 47.9,
+   "weather_12m": {
+    "heat_days": 16,
+    "heavy_rain_days": 0,
+    "high_wind_days": 1,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 78,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Chapel Hill Southern Village": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 43.1,
+   "weather_12m": {
+    "heat_days": 17,
+    "heavy_rain_days": 1,
+    "high_wind_days": 1,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 79,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Carrboro": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 43.1,
+   "weather_12m": {
+    "heat_days": 17,
+    "heavy_rain_days": 1,
+    "high_wind_days": 1,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 79,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Holly Springs": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 48.5,
+   "weather_12m": {
+    "heat_days": 15,
+    "heavy_rain_days": 1,
+    "high_wind_days": 0,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 78,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Garner": {
+   "flood": {
+    "zone": "X",
+    "subtype": "AREA OF MINIMAL FLOOD HAZARD",
+    "sfha": false
+   },
+   "aqi_30d": 48.5,
+   "weather_12m": {
+    "heat_days": 19,
+    "heavy_rain_days": 1,
+    "high_wind_days": 0,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 76,
+   "source": "fema_nfhl+open_meteo"
+  },
+  "Morrisville": {
+   "flood": {
+    "zone": "AE",
+    "subtype": null,
+    "sfha": true
+   },
+   "aqi_30d": 47.9,
+   "weather_12m": {
+    "heat_days": 13,
+    "heavy_rain_days": 1,
+    "high_wind_days": 0,
+    "window": "2025-10-10..2026-10-10"
+   },
+   "environment_index": 39,
+   "source": "fema_nfhl+open_meteo"
+  }
+ }
+}

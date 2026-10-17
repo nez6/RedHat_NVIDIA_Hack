@@ -1,5 +1,5 @@
 {
- "run_at": "2026-10-17T21:15:36+00:00",
+ "run_at": "2026-10-17T23:07:23+00:00",
  "sources": {
   "fred": {
    "status": "ok",
@@ -18,6 +18,13 @@
    ],
    "neighborhoods": 8,
    "secs": 8.53
+  },
+  "environment": {
+   "status": "ok",
+   "errors": {},
+   "warnings": [],
+   "neighborhoods": 18,
+   "secs": 57.09
   }
  }
 }

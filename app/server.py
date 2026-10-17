@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import agents, jev as J, live, tools as T
+from . import agents, jev as J, live, metric_agents as MA, tools as T
 from pipeline import http as pipeline_http
 
 app = FastAPI(title="DreamHome AI (Nemotron)")
@@ -84,6 +84,23 @@ def health():
 @app.get("/api/data-status")
 def data_status():
     return {**live.status(), "jev_enabled": J.enabled()}
+
+
+@app.get("/api/agents")
+def agent_registry():
+    """The 10 metric agents and the result of the configuration check."""
+    return {"agents": MA.describe(), "problems": MA.validate_registry()}
+
+
+@app.get("/api/gym")
+def gym_summary():
+    """Latest NeMo Gym evaluation / RL rollout summary (written by scripts/gym_summary.py)."""
+    path = os.path.join(os.path.dirname(__file__), "..", "results", "gym", "summary.json")
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {"agents": {}, "files": {}}
 
 
 @app.get("/api/meta")

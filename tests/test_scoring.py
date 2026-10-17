@@ -23,11 +23,11 @@ def test_ranking_is_deterministic():
 
 
 def test_single_weight_ranks_by_that_criterion():
-    w = {c: 0 for c in T.CRITERIA} | {"affordability": 5}
+    w = {c: 0 for c in T.CRITERIA} | {"deal": 5}
     rows = T.score_matrix(IDS, PROFILE, w)
-    vals = [r["scores"]["affordability"] for r in rows]
+    vals = [r["scores"]["deal"] for r in rows]
     assert vals == sorted(vals, reverse=True)
-    assert all(r["total"] == r["scores"]["affordability"] for r in rows)
+    assert all(r["total"] == r["scores"]["deal"] for r in rows)
 
 
 def test_raising_a_weight_never_hurts_the_leader_on_it():
@@ -41,7 +41,7 @@ def test_jev_decision_overrides_fit_and_blends_safety():
     lid = IDS[0]
     base = T.criterion_scores(lid, PROFILE)
     s = T.criterion_scores(lid, PROFILE, {"safety": 100, "fit": 7, "verdict": "pass"})
-    assert s["fit"] == 7
+    assert s["lifestyle"] == 7
     assert s["safety"] == round(0.5 * base["safety"] + 50)
 
 

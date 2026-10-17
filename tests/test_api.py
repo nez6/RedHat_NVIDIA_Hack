@@ -14,17 +14,17 @@ def m_criteria():
 
 def test_meta_and_data_status():
     m = client.get("/api/meta").json()
-    assert "fit" in m["criteria"] and m["listings"] == 61
+    assert len(m["criteria"]) == 10 and "lifestyle" in m["criteria"] and m["listings"] == 61
     d = client.get("/api/data-status").json()
     assert d["mortgage_30y"] == 7.4 and d["live_safety_neighborhoods"] == 2 and d["jev_enabled"] is False
 
 
 def test_rescore_with_jev_payload():
     ids = [1001, 1002, 1003]
-    weights = {c: 0 for c in m_criteria()} | {"fit": 5}
+    weights = {c: 0 for c in m_criteria()} | {"lifestyle": 5}
     rows = client.post("/api/rescore", json={"ids": ids, "profile": {"max_price": 500000}, "weights": weights,
                                              "jev": {"1001": {"fit": 100, "safety": 90}}}).json()
-    assert rows[0]["listing"]["id"] == 1001 and rows[0]["scores"]["fit"] == 100
+    assert rows[0]["listing"]["id"] == 1001 and rows[0]["scores"]["lifestyle"] == 100
 
 
 def test_match_stream_completes_with_nemotron_down():
@@ -53,3 +53,20 @@ def test_fallback_demo_recovers_from_injected_failures():
 def test_narrate_reports_error_when_nemotron_down():
     d = client.post("/api/narrate", json={"id": 1001, "weights": {}}).json()
     assert "error" in d
+
+
+def test_agent_registry_endpoint():
+    d = client.get("/api/agents").json()
+    assert d["problems"] == [] and len(d["agents"]) == 10
+    assert {a["key"] for a in d["agents"] if a["gym_mode"] == "eval+rl"} == {"forecast", "deal"}
+
+
+def test_match_stream_reports_all_ten_metric_agents():
+    r = client.post("/api/match", json={"dream": "condo near downtown", "form": {"max_price": 400000}})
+    events = [json.loads(line) for line in r.text.splitlines() if line.strip()]
+    assert len({e["key"] for e in events if e["type"] == "metric_agent"}) == 10
+
+
+def test_gym_summary_endpoint_never_fails():
+    d = client.get("/api/gym").json()
+    assert "agents" in d

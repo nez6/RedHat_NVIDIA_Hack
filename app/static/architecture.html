@@ -49,13 +49,13 @@ body{background:var(--bg-dark);color:var(--text-main);font-family:'Segoe UI',sys
     </div>
     <div class="card-body">
       <div class="row g-3 text-center">
-        <div class="col-md"><div class="architecture-node" id="n1"><i class="fa-solid fa-spider fs-3 text-warning mb-2"></i><h6>1. Ingestion Pipeline</h6><small class="text-muted">FRED rates &amp; HPI · Raleigh &amp; Cary police feeds</small><div class="node-status" id="n1s">…</div></div></div>
+        <div class="col-md"><div class="architecture-node" id="n1"><i class="fa-solid fa-spider fs-3 text-warning mb-2"></i><h6>1. Ingestion Pipeline</h6><small class="text-muted">FRED · Raleigh &amp; Cary PD · FEMA flood · Open-Meteo, validated by data contracts</small><div class="node-status" id="n1s">…</div></div></div>
         <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
-        <div class="col-md"><div class="architecture-node" id="n2"><i class="fa-solid fa-database fs-3 text-primary mb-2"></i><h6>2. Contracts &amp; Snapshots</h6><small class="text-muted">Validated, atomic, last-good fallback · Databricks / Unity Catalog planned</small><div class="node-status" id="n2s">…</div></div></div>
+        <div class="col-md"><div class="architecture-node" id="n2"><i class="fa-solid fa-database fs-3 text-primary mb-2"></i><h6>2. Databricks Unity Catalog</h6><small class="text-muted">Bronze → silver → gold · tags · CHECK constraints · lineage · audit tables</small><div class="node-status" id="n2s">…</div></div></div>
         <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
-        <div class="col-md"><div class="architecture-node active" id="n3"><i class="fa-solid fa-calculator fs-3 text-success mb-2"></i><h6>3. Jev Decision Layer</h6><small class="text-muted">Deterministic 8-criteria matrix + Jev safety / fit / verdict</small><div class="node-status" id="n3s">…</div></div></div>
+        <div class="col-md"><div class="architecture-node active" id="n3"><i class="fa-solid fa-calculator fs-3 text-success mb-2"></i><h6>3. Jev Decision Layer</h6><small class="text-muted">Deterministic 10-criteria matrix + Jev safety / fit / verdict</small><div class="node-status" id="n3s">…</div></div></div>
         <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
-        <div class="col-md"><div class="architecture-node" id="n4"><i class="fa-solid fa-robot fs-3 text-danger mb-2"></i><h6>4. vLLM · Nemotron Agents</h6><small class="text-muted">5 tool-calling agents + narrative synthesis</small><div class="node-status" id="n4s">…</div></div></div>
+        <div class="col-md"><div class="architecture-node" id="n4"><i class="fa-solid fa-robot fs-3 text-danger mb-2"></i><h6>4. vLLM · Nemotron Agents</h6><small class="text-muted">Concierge · Scout · 10 metric agents · Matchmaker</small><div class="node-status" id="n4s">…</div></div></div>
         <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
         <div class="col-md"><div class="architecture-node active" id="n5"><i class="fa-solid fa-laptop-code fs-3 text-info mb-2"></i><h6>5. Web UI</h6><small class="text-muted">FastAPI + streaming decision matrix</small><div class="node-status"><a href="./" class="link-info">open app →</a></div></div></div>
       </div>
@@ -77,12 +77,17 @@ body{background:var(--bg-dark);color:var(--text-main);font-family:'Segoe UI',sys
       <div class="card card-custom">
         <div class="card-header-custom"><span><i class="fa-solid fa-vial me-2 text-success"></i> Quality Harness</span><small class="text-success">pytest · GitHub Actions</small></div>
         <div class="card-body small">
-          <div class="d-flex justify-content-between mb-2"><span>Hermetic tests (math, matrix, contracts, Jev, API)</span><span class="badge bg-success">33</span></div>
-          <div class="d-flex justify-content-between mb-2"><span>Live source smoke tests (FRED, police)</span><span class="badge bg-success">3</span></div>
+          <div class="d-flex justify-content-between mb-2"><span>Hermetic tests (math, matrix, contracts, agents, Databricks, Gym, API)</span><span class="badge bg-success">73</span></div>
+          <div class="d-flex justify-content-between mb-2"><span>Live source smoke tests (FRED, Raleigh PD, Cary PD)</span><span class="badge bg-success">3</span></div>
           <div class="d-flex justify-content-between mb-2"><span>Failure paths covered</span><span class="text-info fw-bold">Nemotron down · Jev timeout · bad feed</span></div>
           <div class="d-flex justify-content-between mb-2"><span>Last data pipeline run</span><span id="pipe-run" class="text-info">…</span></div>
-          <div class="d-flex justify-content-between"><span>NeMo Gym benchmark harness</span><span class="badge badge-planned">planned</span></div>
+          <div class="d-flex justify-content-between mb-1"><span>NeMo Gym: 8 eval harnesses + forecast/deal RL rollouts</span><span id="gym-status" class="badge badge-planned">…</span></div>
+          <div id="gym-agents" class="mt-2"></div>
         </div>
+      </div>
+      <div class="card card-custom">
+        <div class="card-header-custom"><span><i class="fa-solid fa-scale-balanced me-2 text-warning"></i> Judging Criteria</span><small class="text-muted">live evidence</small></div>
+        <div class="card-body small" id="criteria"></div>
       </div>
     </div>
 
@@ -117,8 +122,7 @@ body{background:var(--bg-dark);color:var(--text-main);font-family:'Segoe UI',sys
 </div>
 
 <script>
-var LABEL = {affordability: "Affordability", safety: "Safety", schools: "Schools", commute: "Commute", space: "Space", features: "Must-haves", value: "Value", fit: "Lifestyle fit"};
-var weights = {affordability: 4, safety: 5, schools: 3, commute: 3, space: 3, features: 3, value: 3, fit: 3};
+var LABEL = {}, weights = {};
 var ids = [], best = null, timer = null;
 function $(id) { return document.getElementById(id); }
 function money(n) { return "$" + Math.round(n).toLocaleString(); }
@@ -196,18 +200,38 @@ $("narrate-btn").addEventListener("click", function () {
 Promise.all([
   fetch("api/meta").then(function (r) { return r.json(); }),
   fetch("api/data-status").then(function (r) { return r.json(); }),
-  fetch("api/health").then(function (r) { return r.json(); })
+  fetch("api/health").then(function (r) { return r.json(); }),
+  fetch("api/agents").then(function (r) { return r.json(); }),
+  fetch("api/gym").then(function (r) { return r.json(); })
 ]).then(function (res) {
-  var meta = res[0], ds = res[1], h = res[2];
+  var meta = res[0], ds = res[1], h = res[2], ag = res[3], gym = res[4];
+  ag.agents.forEach(function (a) { LABEL[a.key] = a.label; weights[a.key] = a.default_weight; });
+  var srcs = ds.sources || {};
+  var okAll = (srcs.fred || {}).status === "ok" && ["ok", "partial"].indexOf((srcs.police || {}).status) >= 0;
+  var gymAgents = (gym && gym.agents) || {}, gymKeys = Object.keys(gymAgents);
+  $("gym-status").textContent = gymKeys.length ? gymKeys.length + " agents scored" : "not run yet";
+  $("gym-status").className = "badge " + (gymKeys.length ? "bg-success" : "badge-planned");
+  $("gym-agents").innerHTML = gymKeys.map(function (k) { var g = gymAgents[k];
+    return "<div class='d-flex justify-content-between'><span class='text-muted'>" + (LABEL[k] || k) + " (" + g.mode + ", n=" + g.n + ")</span><span>reward " + g.mean_reward.toFixed(2) + " · pass " + Math.round(g.pass_rate * 100) + "%</span></div>"; }).join("");
+  var dbx = ds.databricks_configured ? (ds.databricks_last_sync ? "synced " + ds.databricks_last_sync : "configured, not synced yet") : "set DATABRICKS_* to enable";
+  var crit = [
+    ["Tool calling (Track 3)", ag.problems.length === 0, "10 metric agents + concierge + scout; registry check " + (ag.problems.length ? "FAILED" : "passes")],
+    ["Nemotron on vLLM", !!h.ok, h.ok ? h.model + " served by vLLM, FP8 on L40S" : "Nemotron offline"],
+    ["Data governance", okAll, "data contracts " + (okAll ? "passing" : "degraded") + " · Unity Catalog: " + dbx + " · AI decisions audited"],
+    ["Design & UX", true, "decision-matrix heatmap, live agent telemetry, light/dark, mobile layout, explainable sub-scores"],
+    ["Reliability & testing", true, "73 hermetic tests + live smoke tests in GitHub Actions; failure injection below"],
+    ["Evaluation (NeMo Gym)", gymKeys.length > 0, gymKeys.length ? gymKeys.length + " agents benchmarked" : "run scripts/gym_eval.sh"],
+  ];
+  $("criteria").innerHTML = crit.map(function (c) {
+    return "<div class='d-flex gap-2 mb-2'><i class='fa-solid " + (c[1] ? "fa-circle-check text-success" : "fa-circle-half-stroke text-warning") + " mt-1'></i><div><strong>" + c[0] + "</strong><div class='text-muted'>" + esc(c[2]) + "</div></div></div>"; }).join("");
   for (var i = 1001; i < 1001 + meta.listings; i++) ids.push(i);
   $("model-badge").innerHTML = "<i class='fa-solid fa-microchip me-1'></i> " + (h.ok ? "Nemotron 3.5 Lightning (" + h.model + ")" : "Nemotron offline");
   var src = ds.sources || {}, fred = src.fred || {}, pol = src.police || {};
-  var okAll = fred.status === "ok" && (pol.status === "ok" || pol.status === "partial");
   $("data-badge").innerHTML = "<i class='fa-solid fa-shield-halved me-1'></i> Data contracts " + (okAll ? "passing" : "degraded");
   $("n1s").textContent = "FRED " + (fred.status || "?") + " · police " + (pol.status || "?") + (pol.raleigh_records ? " · " + pol.raleigh_records + " incidents" : "");
   $("n1").classList.toggle("active", okAll);
-  $("n2s").textContent = "30-yr " + ds.mortgage_30y + "% (" + (ds.mortgage_source.as_of || "default") + ") · " + ds.live_safety_neighborhoods + " live safety areas";
-  $("n2").classList.toggle("active", !!ds.run_at);
+  $("n2s").textContent = (ds.databricks_configured ? "catalog " + ds.databricks_catalog + " · " : "") + dbx;
+  $("n2").classList.toggle("active", !!ds.databricks_last_sync);
   $("n3s").textContent = ds.jev_enabled ? "Jev live" : "Jev key not set → rule engine";
   $("n4s").textContent = h.ok ? "online · " + h.base_url : "offline → agent fallbacks";
   $("n4").classList.toggle("active", !!h.ok);

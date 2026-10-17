@@ -1,0 +1,2 @@
+{"fetched_at": "2026-10-17T19:00:00+00:00", "neighborhoods": {
+ "Oakwood": {"flood": {"zone": "AE", "subtype": null, "sfha": true}, "aqi_30d": 42.0, "weather_12m": {"heat_days": 4, "heavy_rain_days": 2, "high_wind_days": 1}, "environment_index": 45, "source": "fema_nfhl+open_meteo"}}}

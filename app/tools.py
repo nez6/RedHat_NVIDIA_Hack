@@ -113,9 +113,9 @@ def affordability(listing_id, annual_income=None, down_payment_pct=20, rate_pct=
 
 
 # ---------------- decision matrix ----------------
-# Math criteria are deterministic formulas. "safety" and "fit" are functional judgements from Jev
-# (app/jev.py) when a Jev decision is supplied, otherwise live index / rules.
-CRITERIA = ["affordability", "safety", "schools", "commute", "space", "features", "value", "fit"]
+# 10 homebuyer-matrix criteria, one per metric agent (see app/metrics.py and app/metric_agents.py).
+# Math criteria are deterministic; "safety" and "lifestyle" blend in Jev judgements when available.
+CRITERIA = ["lifestyle", "school", "safety", "environment", "urban", "commute", "forecast", "deal", "rooms", "maintenance"]
 
 
 def math_inputs(listing_id, profile):
@@ -127,27 +127,8 @@ def math_inputs(listing_id, profile):
 
 
 def criterion_scores(listing_id, profile, jev=None):
-    r = BY_ID[int(listing_id)]
-    n = neighborhood_report(listing_id, profile.get("commute_destination") or "downtown raleigh")
-    a = affordability(listing_id, profile.get("annual_income"), profile.get("down_payment_pct", 20))
-    budget = profile.get("max_price") or r["price"]
-    afford = max(0, min(100, 100 - (r["price"] - 0.75 * budget) / (0.30 * budget) * 100)) if budget else 50
-    if a.get("housing_ratio_pct"):
-        afford = min(afford, max(0, 100 - max(0, a["housing_ratio_pct"] - 28) * 6))
-    commute = max(0, min(100, 100 - (n["commute_minutes"] - 10) * 2.5))
-    want_beds = profile.get("min_beds") or 3
-    space = max(0, min(100, 60 + (r["beds"] - want_beds) * 15 + (r["sqft"] - 1800) / 40))
-    wants = [f.lower() for f in profile.get("must_have_features") or []]
-    features = 100 * sum(f in r["features"] for f in wants) / len(wants) if wants else min(100, len(r["features"]) * 14)
-    value = max(0, min(100, 60 - a["price_vs_area_pct"] * 2))
-    safety = n["safety_index"]
-    fit = round(0.6 * features + 0.4 * space)
-    if jev:
-        safety = round(0.5 * safety + 0.5 * jev["safety"]) if jev.get("safety") is not None else safety
-        fit = jev["fit"] if jev.get("fit") is not None else fit
-    return {"affordability": round(afford), "safety": safety, "schools": n["school_rating"] * 10,
-            "commute": round(commute), "space": round(space), "features": round(features), "value": round(value),
-            "fit": fit}
+    from . import metrics  # lazy: metrics imports this module
+    return metrics.scores(listing_id, profile, jev)
 
 
 def score_matrix(listing_ids, profile, weights, jev=None):
@@ -183,6 +164,12 @@ SCHEMAS = {
         "property_types": {"type": "array", "items": {"type": "string", "enum": ["Single Family", "Townhouse", "Condo"]}},
         "must_have_features": {"type": "array", "items": {"type": "string", "enum": FEATURES}},
         "commute_destination": {"type": "string", "enum": sorted(set(DESTINATIONS))},
+        "max_commute_min": {"type": "integer", "description": "Longest acceptable commute in minutes"},
+        "urban_target": {"type": "string", "enum": sorted(set(DESTINATIONS)), "description": "Urban hub they want to be near"},
+        "min_school_rating": {"type": "integer", "description": "Minimum school rating 1-10"},
+        "min_sqft": {"type": "integer"},
+        "max_hoa": {"type": "integer", "description": "Max acceptable monthly HOA in USD"},
+        "risk_tolerance": {"type": "string", "enum": ["low", "medium", "high"]},
         "weights": {"type": "object", "description": "Importance 0-5 for each criterion",
                     "properties": {c: {"type": "number"} for c in CRITERIA}},
         "summary": {"type": "string", "description": "One-sentence recap of the dream home"}},

@@ -1,0 +1,68 @@
+{
+ "agents": {
+  "commute": {
+   "mode": "eval",
+   "n": 8,
+   "mean_reward": 1.0,
+   "pass_rate": 1.0
+  },
+  "deal": {
+   "mode": "eval+rl",
+   "n": 48,
+   "mean_reward": 0.875,
+   "pass_rate": 0.792
+  },
+  "environment": {
+   "mode": "eval",
+   "n": 8,
+   "mean_reward": 1.0,
+   "pass_rate": 1.0
+  },
+  "forecast": {
+   "mode": "eval+rl",
+   "n": 48,
+   "mean_reward": 0.957,
+   "pass_rate": 0.625
+  },
+  "lifestyle": {
+   "mode": "eval",
+   "n": 8,
+   "mean_reward": 1.0,
+   "pass_rate": 1.0
+  },
+  "maintenance": {
+   "mode": "eval",
+   "n": 8,
+   "mean_reward": 1.0,
+   "pass_rate": 1.0
+  },
+  "rooms": {
+   "mode": "eval",
+   "n": 8,
+   "mean_reward": 1.0,
+   "pass_rate": 1.0
+  },
+  "safety": {
+   "mode": "eval",
+   "n": 8,
+   "mean_reward": 0.938,
+   "pass_rate": 0.875
+  },
+  "school": {
+   "mode": "eval",
+   "n": 8,
+   "mean_reward": 0.938,
+   "pass_rate": 0.875
+  },
+  "urban": {
+   "mode": "eval",
+   "n": 8,
+   "mean_reward": 0.938,
+   "pass_rate": 0.875
+  }
+ },
+ "files": {
+  "eval": "/home/shadeform/RedHat_NVIDIA_Hack/results/gym/eval_rollouts.jsonl",
+  "rl": "/home/shadeform/RedHat_NVIDIA_Hack/results/gym/rl_rollouts.jsonl"
+ }
+}

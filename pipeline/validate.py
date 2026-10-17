@@ -37,3 +37,16 @@ def check_safety(safety, expected_hoods):
     if raleigh and sum(p["incidents"] for p in raleigh) == 0:
         raise ContractError("Raleigh feed returned zero incidents near every neighborhood — feed likely broken")
     return problems
+
+
+def check_environment(env, expected_hoods):
+    if not env:
+        raise ContractError("environment feed returned no neighborhoods")
+    for name, e in env.items():
+        if not (0 <= e["environment_index"] <= 100):
+            raise ContractError(f"{name} environment_index out of range")
+        aqi = e.get("aqi_30d")
+        if aqi is not None and not (0 <= aqi <= 500):
+            raise ContractError(f"{name} AQI out of range: {aqi}")
+    missing = [h for h in expected_hoods if h not in env]
+    return [f"no environment data for {len(missing)} neighborhoods"] if missing else []

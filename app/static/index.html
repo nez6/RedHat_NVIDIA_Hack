@@ -36,7 +36,13 @@ button.go{margin-top:14px;width:100%;padding:11px;border:0;border-radius:10px;ba
 button.go:disabled{opacity:.55;cursor:wait}
 .w{display:grid;grid-template-columns:96px 1fr 22px;align-items:center;gap:8px;margin:6px 0;font-size:13px}
 .w input{padding:0} .w b{font:12px var(--mono);text-align:right}
-.crew{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
+.crew{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+.ma{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+@media (max-width:900px){.ma{grid-template-columns:1fr}}
+.ma .row{display:grid;grid-template-columns:14px 1fr auto;gap:6px;align-items:start;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:12.5px}
+.ma .row .t{color:var(--muted);font-size:11.5px;grid-column:2/4}
+.ma .row .tag{font:10.5px var(--mono);color:var(--muted)}
+.ma .row.done .dot{background:var(--accent)}.ma .row.run .dot{background:var(--accent);animation:p 1s infinite}.ma .row.fb .dot{background:var(--warn)}
 @media (max-width:1300px){.crew{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:700px){.crew{grid-template-columns:repeat(2,1fr)}}
 .agent.jev{border-style:dashed}
@@ -99,6 +105,7 @@ th.rank1{box-shadow:inset 0 3px 0 var(--accent)}
 
   <section class="stack">
     <div class="crew" id="crew"></div>
+    <div class="card"><h2>10 metric agents · Nemotron tool-calling</h2><div class="ma" id="ma"></div><div class="foot" id="ma-cfg"></div></div>
     <div class="card"><h2>Decision matrix</h2><div class="matrix" id="matrix"><div class="empty">Run the crew to see your top homes scored side by side.</div></div></div>
     <div class="card"><h2>Matchmaker's recommendation</h2><div class="rec" id="rec"><span class="empty" style="padding:0">—</span></div></div>
     <div class="card"><h2>Shortlist</h2><div class="homes" id="homes"></div></div>
@@ -107,8 +114,11 @@ th.rank1{box-shadow:inset 0 3px 0 var(--accent)}
   </section>
 </main>
 <script>
-const CREW=[["Concierge","Turns your words into a profile"],["Listings Scout","Searches the housing DB"],["Neighborhood Analyst","Safety, schools, commute"],["Finance Advisor","Monthly cost & affordability"],["Jev Decision Layer","Calibrated safety, fit & verdict"],["Matchmaker","Explains the winner"]];
-const LABEL={affordability:"Affordability",safety:"Safety",schools:"Schools",commute:"Commute",space:"Space",features:"Must-haves",value:"Value",fit:"Lifestyle fit"};
+const CREW=[["Concierge","Turns your words into a profile"],["Listings Scout","Searches the housing DB"],["Metric Agents","10 specialists, one per score"],["Jev Decision Layer","Calibrated safety, fit & verdict"],["Matchmaker","Explains the winner"]];
+let LABEL={lifestyle:"Lifestyle",school:"School",safety:"Safety",environment:"Environment",urban:"Urban",commute:"Commute",forecast:"Value / Forecast",deal:"Deal",rooms:"Rooms / Layout",maintenance:"Maintenance"};
+let AGENTS=[], maDone=0;
+function maUI(){ $("ma").innerHTML=AGENTS.map(function(a){return "<div class=\"row\" id=\"ma-"+a.key+"\"><span class=\"dot\"></span><b>"+a.name+"</b><span class=\"tag\">"+(a.gym_mode==="eval+rl"?"NeMo Gym eval+RL":"NeMo Gym eval")+"</span><div class=\"t\">"+a.sources+"</div></div>";}).join(""); maDone=0; }
+function maSet(k,cls,txt){ const el=$("ma-"+k); if(!el)return; el.className="row "+cls; if(txt) el.querySelector(".t").textContent=txt; }
 let state={criteria:Object.keys(LABEL),weights:{},touched:false,ids:[],profile:null,rows:[],jev:null};
 const VERD={tour_now:"tour now",consider:"consider",pass:"pass"};
 const $=id=>document.getElementById(id);
@@ -143,18 +153,19 @@ function onEvent(e){
     case "llm": setAgent(e.agent,"run",`LLM ${e.ms} ms${e.tool_calls.length?" → "+e.tool_calls.length+" tool call(s)":""}`); log(`<span class="a">${e.agent}</span> nemotron ${e.ms}ms ${e.tool_calls.join(", ")}`); break;
     case "tool": log(`&nbsp;&nbsp;↳ ${e.tool}(${JSON.stringify(e.args)}) ${e.ms}ms → ${typeof e.result_preview=="string"?e.result_preview:JSON.stringify(e.result_preview)}`); break;
     case "fallback": setAgent(e.agent,"fb","fallback: "+e.reason.slice(0,40)); log(`<span class="fb">${e.agent} fallback: ${e.reason}</span>`); break;
+    case "metric_agent": maDone++; maSet(e.key, e.status==="done"?"done":"fb", (e.status==="done"?"":"fallback · ")+e.ms+" ms · "+(e.text||"tool ran")); setAgent("Metric Agents", maDone===10?"done":"run", maDone+"/10 done"); break;
     case "say": log(`<span class="a">${e.agent}</span> “${e.text}”`); break;
     case "profile": state.profile=e.profile; if(!state.touched){state.weights={...e.profile.weights}; weightsUI(state.weights);} setAgent("Concierge","done",e.profile.summary?.slice(0,60)||"profile set"); setAgent("Listings Scout","run","searching…"); break;
-    case "shortlist": state.ids=e.ids; setAgent("Listings Scout","done",`${e.ids.length} candidates`); setAgent("Neighborhood Analyst","run","analysing…"); setAgent("Finance Advisor","run","analysing…"); setAgent("Jev Decision Layer","run","waiting for analysts…"); break;
+    case "shortlist": state.ids=e.ids; setAgent("Listings Scout","done",`${e.ids.length} candidates`); setAgent("Metric Agents","run","0/10 done"); AGENTS.forEach(function(a){maSet(a.key,"run","calling "+a.tool+"…");}); setAgent("Jev Decision Layer","run","waiting for analysts…"); break;
     case "jev": setAgent("Jev Decision Layer","done",`${e.engine==="jev"?"Jev":"rules fallback"} · ${e.calls} calls · ${e.ms} ms`); log(`<span class="a">Jev Decision Layer</span> engine=${e.engine} ${e.calls} parallel calls in ${e.ms}ms (p50 ${e.p50_call_ms}ms)${e.errors.length?` <span class="fb">${e.errors[0]}</span>`:""}`); break;
-    case "matrix": state.jev=e.jev; setAgent("Neighborhood Analyst","done","reports in"); setAgent("Finance Advisor","done","costs in"); setAgent("Matchmaker","run","writing…"); if(state.touched){rescore()}else{matrixUI(e.rows)} break;
+    case "matrix": state.jev=e.jev;  setAgent("Matchmaker","run","writing…"); if(state.touched){rescore()}else{matrixUI(e.rows)} break;
     case "recommendation": $("rec").textContent=e.text; setAgent("Matchmaker","done","done"); break;
     case "done": log(`<b>pipeline finished in ${(e.ms/1000).toFixed(1)} s</b>`); break;
     case "error": log(`<span class="fb">error: ${e.message}</span>`); break;
   }
 }
 async function go(){
-  $("go").disabled=true; $("log").innerHTML=""; crewUI();
+  $("go").disabled=true; $("log").innerHTML=""; crewUI(); maUI();
   const form={}; ["max_price","annual_income","min_beds","down_payment_pct"].forEach(k=>{const v=$(k).value; if(v!=="")form[k]=+v;});
   const cd=$("commute_destination").value; if(cd)form.commute_destination=cd;
   const cities=[...document.querySelectorAll("#cities .chip.on")].map(c=>c.textContent); if(cities.length)form.cities=cities;
@@ -167,8 +178,9 @@ async function go(){
   $("go").disabled=false;
 }
 (async()=>{
-  crewUI(); weightsUI({affordability:4,safety:4,schools:3,commute:3,space:3,features:3,value:2,fit:4});
-  state.weights={affordability:4,safety:4,schools:3,commute:3,space:3,features:3,value:2,fit:4};
+  crewUI();
+  try{const ag=await fetch("api/agents").then(r=>r.json()); AGENTS=ag.agents; ag.agents.forEach(function(a){LABEL[a.key]=a.label; state.weights[a.key]=a.default_weight;}); maUI(); $("ma-cfg").textContent=ag.problems.length?("config problems: "+ag.problems.join("; ")):"Registry check: all 10 agents have a tool, scorer, weight and NeMo Gym harness.";}catch(e){}
+  state.criteria=Object.keys(LABEL); weightsUI(state.weights);
   $("go").onclick=go;
   const m=await fetch("api/meta").then(r=>r.json());
   $("cities").innerHTML=m.cities.map(c=>`<span class="chip">${c}</span>`).join("");

@@ -5,7 +5,7 @@ import pytest
 
 from conftest import fixture
 from pipeline import run, transform, validate
-from pipeline.sources import fred, police
+from pipeline.sources import environment, fred, police
 
 HOODS = json.load(open(os.path.join(os.path.dirname(__file__), "..", "data", "neighborhoods.json")))
 
@@ -72,7 +72,10 @@ def test_run_writes_snapshots_and_keeps_last_good_on_failure(tmp_path, monkeypat
     inc = [r for r in (police.normalize_raleigh(f) for f in fixture("raleigh_incidents.json")["features"]) if r]
     monkeypatch.setattr(police, "fetch_raleigh", lambda: inc)
     monkeypatch.setattr(police, "fetch_cary", lambda: {"LARCENY": 10})
+    monkeypatch.setattr(environment, "fetch_neighborhood", lambda h: {"flood": {"zone": "X", "subtype": None, "sfha": False},
+                                                                      "aqi_30d": 35.0, "weather_12m": {"heat_days": 2}})
     assert run.main([]) == 0
+    assert json.load(open(tmp_path / "environment.json"))["neighborhoods"]["Oakwood"]["environment_index"] == 96
     snap = json.load(open(tmp_path / "fred.json"))
     assert snap["series"]["mortgage_30y"]["value"] == 7.4
     safety = json.load(open(tmp_path / "safety.json"))["neighborhoods"]
@@ -84,3 +87,20 @@ def test_run_writes_snapshots_and_keeps_last_good_on_failure(tmp_path, monkeypat
     assert json.load(open(tmp_path / "fred.json"))["series"]["mortgage_30y"]["value"] == 7.4
     man = json.load(open(tmp_path / "manifest.json"))
     assert man["sources"]["fred"]["status"] == "failed" and man["sources"]["police"]["status"] == "ok"
+
+
+def test_environment_index_penalizes_floodplain_air_and_weather():
+    clean = {"flood": {"zone": "X", "subtype": None}, "aqi_30d": 20, "weather_12m": {}}
+    assert transform.environment_index(clean) == 100
+    assert transform.environment_index({**clean, "flood": {"zone": "AE"}}) == 60
+    assert transform.environment_index({**clean, "flood": {"zone": "X", "subtype": "0.2 PCT ANNUAL CHANCE FLOOD HAZARD"}}) == 85
+    assert transform.environment_index({**clean, "aqi_30d": 80}) == 65
+    assert transform.environment_index({**clean, "weather_12m": {"heat_days": 100, "heavy_rain_days": 9}}) == 80
+
+
+def test_environment_contract():
+    with pytest.raises(validate.ContractError):
+        validate.check_environment({}, ["Oakwood"])
+    with pytest.raises(validate.ContractError):
+        validate.check_environment({"Oakwood": {"environment_index": 50, "aqi_30d": 900}}, ["Oakwood"])
+    assert validate.check_environment({"Oakwood": {"environment_index": 50, "aqi_30d": 40}}, ["Oakwood", "Garner"])
