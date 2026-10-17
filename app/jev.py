@@ -95,12 +95,14 @@ def rule_fallback(listing, profile, math_scores, live_safety_index):
     return {"safety": live_safety_index, "fit": fit, "verdict": verdict, "verdict_probs": None, "confidence": None}
 
 
-def decide(listing, profile, math_scores, safety_text, live_safety_index):
-    if not enabled():
+def decide(listing, profile, math_scores, safety_text, live_safety_index, post=None):
+    """post: optional transport override (used by the failure-injection demo and tests)."""
+    if post is None and not enabled():
         return {**rule_fallback(listing, profile, math_scores, live_safety_index), "engine": "rules", "ms": 0}
+    post = post or _post
     t0 = time.time()
     try:
-        out = parse(_post(build_state(listing, profile, math_scores, safety_text), QUESTIONS))
+        out = parse(post(build_state(listing, profile, math_scores, safety_text), QUESTIONS))
         fb = rule_fallback(listing, profile, math_scores, live_safety_index)
         for k in ("safety", "fit", "verdict"):
             if out.get(k) is None:

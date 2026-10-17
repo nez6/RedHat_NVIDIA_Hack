@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EstatePulse AI — Architecture &amp; Judging Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root{--bg-dark:#0f172a;--card-bg:#1e293b;--accent-red:#ee0000;--accent-green:#10b981;--accent-blue:#3b82f6;--text-main:#f8fafc;--text-muted:#94a3b8;--border-color:#334155}
+body{background:var(--bg-dark);color:var(--text-main);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;padding-bottom:50px}
+.text-muted{color:var(--text-muted)!important}
+.navbar-custom{background:var(--card-bg);border-bottom:2px solid var(--accent-red)}
+.badge-system{background:rgba(59,130,246,.2);color:#60a5fa;border:1px solid #3b82f6}
+.badge-success-custom{background:rgba(16,185,129,.2);color:#34d399;border:1px solid #10b981}
+.badge-planned{background:rgba(148,163,184,.15);color:#cbd5e1;border:1px dashed #64748b}
+.card-custom{background:var(--card-bg);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 10px 15px -3px rgba(0,0,0,.5);margin-bottom:24px;color:var(--text-main)}
+.card-header-custom{border-bottom:1px solid var(--border-color);padding:16px 20px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.architecture-node{background:#0f172a;border:1px solid var(--border-color);border-radius:8px;padding:15px;text-align:center;height:100%}
+.architecture-node.active{border-color:var(--accent-green);box-shadow:0 0 10px rgba(16,185,129,.3)}
+.architecture-node.planned{border-style:dashed;opacity:.8}
+.node-status{font-size:.72rem;margin-top:6px;font-family:'Courier New',monospace}
+.telemetry-panel{background:#090d16;border-radius:8px;font-family:'Courier New',Courier,monospace;padding:15px;font-size:.85rem;color:#38bdf8;max-height:280px;overflow-y:auto}
+.telemetry-panel .warn{color:#fbbf24}.telemetry-panel .ok{color:#34d399}.telemetry-panel .err{color:#f87171}
+.metric-score{font-size:2.5rem;font-weight:700;color:var(--accent-green)}
+.slider-label{display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:5px}
+.form-range::-webkit-slider-thumb{background:var(--accent-blue)}
+.sub{padding:8px;border:1px solid var(--border-color);border-radius:6px}
+.sub small{display:block;color:var(--text-muted)}
+@media (max-width:767px){.arrow{display:none!important}}
+</style>
+</head>
+<body>
+<nav class="navbar navbar-dark navbar-custom px-3 px-md-4 mb-4">
+  <a class="navbar-brand fw-bold text-white" href="./"><i class="fa-solid fa-house-signal me-2 text-danger"></i>EstatePulse AI</a>
+  <div class="ms-auto d-flex flex-wrap align-items-center gap-2">
+    <span class="badge badge-system px-3 py-2"><i class="fa-solid fa-server me-1"></i> vLLM</span>
+    <span class="badge badge-system px-3 py-2" id="model-badge"><i class="fa-solid fa-microchip me-1"></i> Nemotron …</span>
+    <span class="badge badge-success-custom px-3 py-2" id="data-badge"><i class="fa-solid fa-shield-halved me-1"></i> Data contracts …</span>
+    <span class="badge bg-secondary px-3 py-2">Parameter audit: 30B total / ~3B active &le; 33B &check;</span>
+  </div>
+</nav>
+
+<div class="container-fluid px-3 px-md-4">
+  <div class="card card-custom">
+    <div class="card-header-custom">
+      <span><i class="fa-solid fa-diagram-project me-2 text-info"></i> End-to-End Systems Architecture</span>
+      <small class="text-muted">Track 3: Tool-Calling · Multi-Criteria Decision Engine (Jev)</small>
+    </div>
+    <div class="card-body">
+      <div class="row g-3 text-center">
+        <div class="col-md"><div class="architecture-node" id="n1"><i class="fa-solid fa-spider fs-3 text-warning mb-2"></i><h6>1. Ingestion Pipeline</h6><small class="text-muted">FRED rates &amp; HPI · Raleigh &amp; Cary police feeds</small><div class="node-status" id="n1s">…</div></div></div>
+        <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
+        <div class="col-md"><div class="architecture-node" id="n2"><i class="fa-solid fa-database fs-3 text-primary mb-2"></i><h6>2. Contracts &amp; Snapshots</h6><small class="text-muted">Validated, atomic, last-good fallback · Databricks / Unity Catalog planned</small><div class="node-status" id="n2s">…</div></div></div>
+        <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
+        <div class="col-md"><div class="architecture-node active" id="n3"><i class="fa-solid fa-calculator fs-3 text-success mb-2"></i><h6>3. Jev Decision Layer</h6><small class="text-muted">Deterministic 8-criteria matrix + Jev safety / fit / verdict</small><div class="node-status" id="n3s">…</div></div></div>
+        <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
+        <div class="col-md"><div class="architecture-node" id="n4"><i class="fa-solid fa-robot fs-3 text-danger mb-2"></i><h6>4. vLLM · Nemotron Agents</h6><small class="text-muted">5 tool-calling agents + narrative synthesis</small><div class="node-status" id="n4s">…</div></div></div>
+        <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
+        <div class="col-md"><div class="architecture-node active" id="n5"><i class="fa-solid fa-laptop-code fs-3 text-info mb-2"></i><h6>5. Web UI</h6><small class="text-muted">FastAPI + streaming decision matrix</small><div class="node-status"><a href="./" class="link-info">open app →</a></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-4">
+      <div class="card card-custom">
+        <div class="card-header-custom"><span><i class="fa-solid fa-sliders me-2 text-warning"></i> Decision Weights</span><span class="badge bg-primary">live /api/rescore</span></div>
+        <div class="card-body">
+          <p class="small text-muted mb-3">Weights re-rank all listings on the server with deterministic math (no LLM, no floating-point drift from a model). Latency below is the measured round trip.</p>
+          <div id="sliders"></div>
+          <hr class="border-secondary my-3">
+          <button class="btn btn-outline-info w-100 btn-sm" id="fallback-btn"><i class="fa-solid fa-bug me-1"></i> Inject API Failure &amp; Watch Tool Fallback</button>
+        </div>
+      </div>
+
+      <div class="card card-custom">
+        <div class="card-header-custom"><span><i class="fa-solid fa-vial me-2 text-success"></i> Quality Harness</span><small class="text-success">pytest · GitHub Actions</small></div>
+        <div class="card-body small">
+          <div class="d-flex justify-content-between mb-2"><span>Hermetic tests (math, matrix, contracts, Jev, API)</span><span class="badge bg-success">33</span></div>
+          <div class="d-flex justify-content-between mb-2"><span>Live source smoke tests (FRED, police)</span><span class="badge bg-success">3</span></div>
+          <div class="d-flex justify-content-between mb-2"><span>Failure paths covered</span><span class="text-info fw-bold">Nemotron down · Jev timeout · bad feed</span></div>
+          <div class="d-flex justify-content-between mb-2"><span>Last data pipeline run</span><span id="pipe-run" class="text-info">…</span></div>
+          <div class="d-flex justify-content-between"><span>NeMo Gym benchmark harness</span><span class="badge badge-planned">planned</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card card-custom">
+        <div class="card-header-custom"><span><i class="fa-solid fa-house me-2 text-danger"></i> Top Match: <span id="addr">…</span></span><span class="badge bg-warning text-dark">Sample listing · live rates &amp; safety</span></div>
+        <div class="card-body">
+          <div class="row align-items-center mb-4">
+            <div class="col-md-3 text-center border-end border-secondary">
+              <small class="text-muted d-block">Composite Fit Score</small>
+              <div class="metric-score" id="composite-score">–</div>
+              <span class="badge bg-primary" id="calc-ms">…</span>
+            </div>
+            <div class="col-md-9 ps-md-4">
+              <h5 id="addr2">…</h5>
+              <p class="text-muted mb-2" id="facts">…</p>
+              <p class="small mb-2" id="ai-narrative"><strong><i class="fa-solid fa-comment-dots text-danger me-1"></i> Nemotron analysis:</strong> <span id="narr" class="text-light">press the button to generate a live narrative.</span></p>
+              <button class="btn btn-sm btn-outline-danger" id="narrate-btn"><i class="fa-solid fa-wand-magic-sparkles me-1"></i> Generate with Nemotron</button>
+            </div>
+          </div>
+          <h6>Normalized Sub-Score Matrix</h6>
+          <div class="row g-2 text-center mt-1" id="subs"></div>
+        </div>
+      </div>
+
+      <div class="card card-custom">
+        <div class="card-header-custom"><span><i class="fa-solid fa-terminal me-2 text-info"></i> System Telemetry</span><small class="text-muted">real calls from this page</small></div>
+        <div class="card-body p-0"><div class="telemetry-panel" id="telemetry-log"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var LABEL = {affordability: "Affordability", safety: "Safety", schools: "Schools", commute: "Commute", space: "Space", features: "Must-haves", value: "Value", fit: "Lifestyle fit"};
+var weights = {affordability: 4, safety: 5, schools: 3, commute: 3, space: 3, features: 3, value: 3, fit: 3};
+var ids = [], best = null, timer = null;
+function $(id) { return document.getElementById(id); }
+function money(n) { return "$" + Math.round(n).toLocaleString(); }
+function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c]; }); }
+function log(msg, cls) {
+  var el = $("telemetry-log"), t = new Date().toISOString().split("T")[1].slice(0, 12);
+  el.insertAdjacentHTML("beforeend", "<div class='" + (cls || "") + "'>[" + t + "] " + esc(msg) + "</div>");
+  el.scrollTop = el.scrollHeight;
+}
+function color(v) { return v >= 80 ? "text-success" : v >= 60 ? "text-info" : v >= 40 ? "text-warning" : "text-danger"; }
+
+function sliders() {
+  var html = "";
+  Object.keys(LABEL).forEach(function (c) {
+    html += "<div class='mb-3'><div class='slider-label'><span>" + LABEL[c] + "</span><strong id='val-" + c + "'>" + weights[c] + "</strong></div>" +
+            "<input type='range' class='form-range' min='0' max='5' step='1' value='" + weights[c] + "' data-c='" + c + "'></div>";
+  });
+  $("sliders").innerHTML = html;
+  document.querySelectorAll("#sliders input").forEach(function (i) {
+    i.addEventListener("input", function () {
+      weights[i.dataset.c] = +i.value; $("val-" + i.dataset.c).textContent = i.value;
+      clearTimeout(timer); timer = setTimeout(rescore, 120);
+    });
+  });
+}
+
+function rescore() {
+  var t0 = performance.now();
+  return fetch("api/rescore", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ids: ids, profile: {max_price: 550000, annual_income: 165000, min_beds: 3}, weights: weights})})
+    .then(function (r) { return r.json(); })
+    .then(function (rows) {
+      var ms = Math.round(performance.now() - t0);
+      best = rows[0];
+      var L = best.listing, F = best.finance, N = best.neighborhood;
+      $("addr").textContent = L.address + ", " + L.city;
+      $("addr2").textContent = L.address + ", " + L.neighborhood + ", " + L.city + " NC";
+      $("facts").textContent = money(L.price) + " | " + L.beds + " Beds | " + L.baths + " Baths | " + L.property_type +
+        " | ≈ " + money(F.monthly_total) + "/mo at " + F.rate_pct + "% (" + (F.rate_source || "") + ") | safety: " + N.safety_source;
+      $("composite-score").textContent = best.total.toFixed(1);
+      $("calc-ms").textContent = rows.length + " homes ranked in " + ms + " ms";
+      var subs = "";
+      Object.keys(LABEL).forEach(function (c) {
+        subs += "<div class='col-6 col-md-3 col-xl'><div class='sub'><small>" + LABEL[c] + "</small><strong class='" + color(best.scores[c]) + "'>" + best.scores[c] + "/100</strong></div></div>";
+      });
+      $("subs").innerHTML = subs;
+      $("narr").textContent = "press the button to generate a live narrative.";
+      log("[DECISION MATRIX] weights " + JSON.stringify(weights) + " → #1 " + L.address + " fit " + best.total + " (" + rows.length + " homes, " + ms + " ms round trip)");
+    })
+    .catch(function (e) { log("[DECISION MATRIX] rescore failed: " + e, "err"); });
+}
+
+$("fallback-btn").addEventListener("click", function () {
+  log("[FAILURE INJECTION] police API forced offline + Jev transport forced to time out…", "warn");
+  fetch("api/fallback-demo").then(function (r) { return r.json(); }).then(function (d) {
+    d.log.forEach(function (e) { log("[" + (e.level === "warn" ? "WARNING" : "AGENT FALLBACK") + "] " + e.msg, e.level); });
+    log("[RESULT] recovered in " + d.total_ms + " ms, no crash", "ok");
+  }).catch(function (e) { log("fallback demo failed: " + e, "err"); });
+});
+
+$("narrate-btn").addEventListener("click", function () {
+  if (!best) return;
+  $("narr").textContent = "generating…";
+  log("[vLLM] POST /v1/chat/completions for listing " + best.listing.id + "…");
+  fetch("api/narrate", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({id: best.listing.id, weights: weights, profile: {max_price: 550000, annual_income: 165000, min_beds: 3}})})
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (d.error) { $("narr").textContent = "Nemotron unavailable (" + d.error + ")"; log("[vLLM] error after " + d.ms + " ms: " + d.error, "err"); return; }
+      $("narr").textContent = d.text;
+      var tps = d.tokens && d.ms ? Math.round(d.tokens / (d.ms / 1000)) : null;
+      log("[vLLM] " + d.model + " narrative in " + d.ms + " ms" + (d.tokens ? " (" + d.tokens + " tokens" + (tps ? ", ~" + tps + " tok/s" : "") + ")" : ""), "ok");
+    });
+});
+
+Promise.all([
+  fetch("api/meta").then(function (r) { return r.json(); }),
+  fetch("api/data-status").then(function (r) { return r.json(); }),
+  fetch("api/health").then(function (r) { return r.json(); })
+]).then(function (res) {
+  var meta = res[0], ds = res[1], h = res[2];
+  for (var i = 1001; i < 1001 + meta.listings; i++) ids.push(i);
+  $("model-badge").innerHTML = "<i class='fa-solid fa-microchip me-1'></i> " + (h.ok ? "Nemotron 3.5 Lightning (" + h.model + ")" : "Nemotron offline");
+  var src = ds.sources || {}, fred = src.fred || {}, pol = src.police || {};
+  var okAll = fred.status === "ok" && (pol.status === "ok" || pol.status === "partial");
+  $("data-badge").innerHTML = "<i class='fa-solid fa-shield-halved me-1'></i> Data contracts " + (okAll ? "passing" : "degraded");
+  $("n1s").textContent = "FRED " + (fred.status || "?") + " · police " + (pol.status || "?") + (pol.raleigh_records ? " · " + pol.raleigh_records + " incidents" : "");
+  $("n1").classList.toggle("active", okAll);
+  $("n2s").textContent = "30-yr " + ds.mortgage_30y + "% (" + (ds.mortgage_source.as_of || "default") + ") · " + ds.live_safety_neighborhoods + " live safety areas";
+  $("n2").classList.toggle("active", !!ds.run_at);
+  $("n3s").textContent = ds.jev_enabled ? "Jev live" : "Jev key not set → rule engine";
+  $("n4s").textContent = h.ok ? "online · " + h.base_url : "offline → agent fallbacks";
+  $("n4").classList.toggle("active", !!h.ok);
+  $("pipe-run").textContent = ds.run_at ? ds.run_at.replace("T", " ").slice(0, 16) + " UTC" : "never";
+  log("[INGESTION] last run " + (ds.run_at || "n/a") + ": FRED " + (fred.status || "?") + " (30-yr " + ds.mortgage_30y + "%), police " + (pol.status || "?") + " (" + (pol.raleigh_records || 0) + " Raleigh incidents)");
+  log("[MODEL] " + (h.ok ? h.model + " reachable at " + h.base_url : "Nemotron unreachable — agents use deterministic fallbacks"), h.ok ? "ok" : "warn");
+  sliders();
+  return rescore();
+}).catch(function (e) { log("startup failed: " + e, "err"); });
+</script>
+</body>
+</html>

@@ -37,3 +37,19 @@ def test_match_stream_completes_with_nemotron_down():
     assert any(e["type"] == "fallback" for e in events)
     matrix = next(e for e in events if e["type"] == "matrix")
     assert matrix["rows"] and all(row["listing"]["price"] <= 500000 * 1.05 for row in matrix["rows"])
+
+
+def test_architecture_dashboard_is_served():
+    r = client.get("/architecture")
+    assert r.status_code == 200 and "EstatePulse AI" in r.text
+
+
+def test_fallback_demo_recovers_from_injected_failures():
+    d = client.get("/api/fallback-demo").json()
+    assert [e["level"] for e in d["log"]] == ["warn", "ok", "ok"]
+    assert d["decision"]["engine"] == "rules" and "injected Jev timeout" in d["decision"]["error"]
+
+
+def test_narrate_reports_error_when_nemotron_down():
+    d = client.post("/api/narrate", json={"id": 1001, "weights": {}}).json()
+    assert "error" in d
