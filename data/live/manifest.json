@@ -1,0 +1,23 @@
+{
+ "run_at": "2026-10-17T21:15:36+00:00",
+ "sources": {
+  "fred": {
+   "status": "ok",
+   "errors": {},
+   "warnings": [],
+   "series": 5,
+   "secs": 0.25,
+   "mortgage_30y": 7.4
+  },
+  "police": {
+   "raleigh_records": 9615,
+   "status": "ok",
+   "errors": {},
+   "warnings": [
+    "no live safety for 10 neighborhoods (baseline used): Apex Peakway, Wake Forest Historic, Durham Downtown, Trinity Park\u2026"
+   ],
+   "neighborhoods": 8,
+   "secs": 8.53
+  }
+ }
+}

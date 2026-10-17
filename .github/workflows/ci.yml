@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Lint
+        run: ruff check .
+      - name: Unit + contract + API tests (hermetic, no GPU/network)
+        run: pytest --junitxml=reports/junit.xml
+      - name: Validate committed live snapshots
+        run: |
+          python - <<'PY'
+          import json, os
+          from pipeline import validate
+          d = "data/live"
+          if os.path.exists(f"{d}/fred.json"):
+              validate.check_fred(json.load(open(f"{d}/fred.json"))["series"], max_age_days=3650)
+          if os.path.exists(f"{d}/safety.json"):
+              hoods = [h["name"] for h in json.load(open("data/neighborhoods.json"))]
+              validate.check_safety(json.load(open(f"{d}/safety.json"))["neighborhoods"], hoods)
+          print("snapshots OK")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-${{ matrix.python }}
+          path: reports/

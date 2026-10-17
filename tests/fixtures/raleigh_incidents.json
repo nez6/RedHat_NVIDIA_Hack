@@ -1,0 +1,7 @@
+{"features": [
+ {"attributes": {"case_number": "P1", "crime_type": "CRIMES AGAINST PERSONS", "crime_category": "ASSAULT", "crime_description": "Simple Assault", "reported_date": 1792194540000, "latitude": 35.7861, "longitude": -78.6301}},
+ {"attributes": {"case_number": "P2", "crime_type": "CRIMES AGAINST PROPERTY", "crime_category": "LARCENY", "crime_description": "Theft From Motor Vehicle", "reported_date": 1792194540000, "latitude": 35.7870, "longitude": -78.6310}},
+ {"attributes": {"case_number": "P3", "crime_type": "CRIMES AGAINST PROPERTY", "crime_category": "MV THEFT", "crime_description": "Motor Vehicle Theft", "reported_date": 1792194540000, "latitude": 35.9061, "longitude": -78.7861}},
+ {"attributes": {"case_number": "BAD", "crime_type": "CRIMES AGAINST PROPERTY", "crime_category": "X", "crime_description": "no coords", "reported_date": 1792194540000, "latitude": null, "longitude": null}},
+ {"attributes": {"case_number": "ZERO", "crime_type": "CRIMES AGAINST PROPERTY", "crime_category": "X", "crime_description": "null island", "reported_date": 1792194540000, "latitude": 0, "longitude": 0}}
+]}

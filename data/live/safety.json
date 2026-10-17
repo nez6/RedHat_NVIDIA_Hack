@@ -1,0 +1,292 @@
+{
+ "fetched_at": "2026-10-17T21:15:36+00:00",
+ "lookback_days": 90,
+ "neighborhoods": {
+  "Five Points": {
+   "safety_index": 69,
+   "weighted_density": 29.13,
+   "incidents": 83,
+   "by_type": {
+    "CRIMES AGAINST PROPERTY": 39,
+    "UNCLASSIFIED": 22,
+    "CRIMES AGAINST PERSONS": 10,
+    "CRIMES AGAINST SOCIETY": 12
+   },
+   "top_categories": [
+    [
+     "FRAUD",
+     11
+    ],
+    [
+     "ALL OTHER OFFENSES",
+     10
+    ],
+    [
+     "LARCENY FROM MV",
+     10
+    ],
+    [
+     "HUMANE",
+     9
+    ],
+    [
+     "SIMPLE ASSAULT",
+     9
+    ]
+   ],
+   "source": "raleigh_pd",
+   "scope": "1 mi radius",
+   "jev_state": "Five Points (1 mi radius), last 90 days: 83 reported incidents \u2014 10 against persons, 39 property, 12 society. Most common: Fraud 11, All Other Offenses 10, Larceny From Mv 10, Humane 9, Simple Assault 9. Severity-weighted density 29.13/sq mi."
+  },
+  "Oakwood": {
+   "safety_index": 47,
+   "weighted_density": 344.65,
+   "incidents": 1036,
+   "by_type": {
+    "UNCLASSIFIED": 111,
+    "CRIMES AGAINST PERSONS": 161,
+    "CRIMES AGAINST SOCIETY": 495,
+    "CRIMES AGAINST PROPERTY": 269
+   },
+   "top_categories": [
+    [
+     "DRUGS",
+     159
+    ],
+    [
+     "SIMPLE ASSAULT",
+     114
+    ],
+    [
+     "DRUG VIOLATIONS",
+     113
+    ],
+    [
+     "ALL OTHER OFFENSES",
+     108
+    ],
+    [
+     "LARCENY",
+     102
+    ]
+   ],
+   "source": "raleigh_pd",
+   "scope": "1 mi radius",
+   "jev_state": "Oakwood (1 mi radius), last 90 days: 1036 reported incidents \u2014 161 against persons, 269 property, 495 society. Most common: Drugs 159, Simple Assault 114, Drug Violations 113, All Other Offenses 108, Larceny 102. Severity-weighted density 344.65/sq mi."
+  },
+  "North Hills": {
+   "safety_index": 64,
+   "weighted_density": 51.17,
+   "incidents": 137,
+   "by_type": {
+    "CRIMES AGAINST PERSONS": 18,
+    "CRIMES AGAINST PROPERTY": 83,
+    "CRIMES AGAINST SOCIETY": 13,
+    "UNCLASSIFIED": 23
+   },
+   "top_categories": [
+    [
+     "LARCENY",
+     47
+    ],
+    [
+     "FRAUD",
+     22
+    ],
+    [
+     "ALL OTHER OFFENSES",
+     11
+    ],
+    [
+     "SIMPLE ASSAULT",
+     10
+    ],
+    [
+     "HUMANE",
+     10
+    ]
+   ],
+   "source": "raleigh_pd",
+   "scope": "1 mi radius",
+   "jev_state": "North Hills (1 mi radius), last 90 days: 137 reported incidents \u2014 18 against persons, 83 property, 13 society. Most common: Larceny 47, Fraud 22, All Other Offenses 11, Simple Assault 10, Humane 10. Severity-weighted density 51.17/sq mi."
+  },
+  "Brier Creek": {
+   "safety_index": 58,
+   "weighted_density": 108.86,
+   "incidents": 310,
+   "by_type": {
+    "CRIMES AGAINST PERSONS": 29,
+    "UNCLASSIFIED": 32,
+    "CRIMES AGAINST SOCIETY": 36,
+    "CRIMES AGAINST PROPERTY": 213
+   },
+   "top_categories": [
+    [
+     "LARCENY",
+     135
+    ],
+    [
+     "VANDALISM",
+     31
+    ],
+    [
+     "LARCENY FROM MV",
+     25
+    ],
+    [
+     "FRAUD",
+     18
+    ],
+    [
+     "ALL OTHER OFFENSES",
+     17
+    ]
+   ],
+   "source": "raleigh_pd",
+   "scope": "1 mi radius",
+   "jev_state": "Brier Creek (1 mi radius), last 90 days: 310 reported incidents \u2014 29 against persons, 213 property, 36 society. Most common: Larceny 135, Vandalism 31, Larceny From Mv 25, Fraud 18, All Other Offenses 17. Severity-weighted density 108.86/sq mi."
+  },
+  "Southeast Raleigh": {
+   "safety_index": 59,
+   "weighted_density": 91.99,
+   "incidents": 204,
+   "by_type": {
+    "UNCLASSIFIED": 36,
+    "CRIMES AGAINST SOCIETY": 52,
+    "CRIMES AGAINST PERSONS": 60,
+    "CRIMES AGAINST PROPERTY": 56
+   },
+   "top_categories": [
+    [
+     "SIMPLE ASSAULT",
+     37
+    ],
+    [
+     "VANDALISM",
+     26
+    ],
+    [
+     "DRUGS",
+     20
+    ],
+    [
+     "LARCENY",
+     17
+    ],
+    [
+     "FRAUD",
+     13
+    ]
+   ],
+   "source": "raleigh_pd",
+   "scope": "1 mi radius",
+   "jev_state": "Southeast Raleigh (1 mi radius), last 90 days: 204 reported incidents \u2014 60 against persons, 56 property, 52 society. Most common: Simple Assault 37, Vandalism 26, Drugs 20, Larceny 17, Fraud 13. Severity-weighted density 91.99/sq mi."
+  },
+  "Cameron Village": {
+   "safety_index": 53,
+   "weighted_density": 185.34,
+   "incidents": 522,
+   "by_type": {
+    "CRIMES AGAINST PROPERTY": 202,
+    "CRIMES AGAINST PERSONS": 81,
+    "UNCLASSIFIED": 71,
+    "CRIMES AGAINST SOCIETY": 168
+   },
+   "top_categories": [
+    [
+     "LARCENY",
+     89
+    ],
+    [
+     "SIMPLE ASSAULT",
+     55
+    ],
+    [
+     "ALL OTHER OFFENSES",
+     41
+    ],
+    [
+     "WEAPONS VIOLATION",
+     41
+    ],
+    [
+     "DRUGS",
+     40
+    ]
+   ],
+   "source": "raleigh_pd",
+   "scope": "1 mi radius",
+   "jev_state": "Cameron Village (1 mi radius), last 90 days: 522 reported incidents \u2014 81 against persons, 202 property, 168 society. Most common: Larceny 89, Simple Assault 55, All Other Offenses 41, Weapons Violation 41, Drugs 40. Severity-weighted density 185.34/sq mi."
+  },
+  "Downtown Cary": {
+   "safety_index": 79,
+   "weighted_density": 9.13,
+   "incidents": 461,
+   "by_type": {
+    "CRIMES AGAINST PROPERTY": 343,
+    "CRIMES AGAINST PERSONS": 51,
+    "CRIMES AGAINST SOCIETY": 67
+   },
+   "top_categories": [
+    [
+     "LARCENY - SHOPLIFTING",
+     54
+    ],
+    [
+     "ASSAULT - SIMPLE PHYSICAL",
+     35
+    ],
+    [
+     "VANDALISM - DAMAGE TO PROPERTY",
+     28
+    ],
+    [
+     "FRAUD - OBTAINING PROPERTY BY FALSE PRETENSE",
+     24
+    ],
+    [
+     "ORDINANCE - ANIMAL BITE",
+     24
+    ]
+   ],
+   "source": "cary_pd",
+   "scope": "town-wide, 365d avg",
+   "jev_state": "Downtown Cary (town-wide, 365d avg), last 90 days: 461 reported incidents \u2014 51 against persons, 343 property, 67 society. Most common: Larceny - Shoplifting 54, Assault - Simple Physical 35, Vandalism - Damage To Property 28, Fraud - Obtaining Property By False Pretense 24, Ordinance - Animal Bite 24. Severity-weighted density 9.13/sq mi."
+  },
+  "West Cary": {
+   "safety_index": 79,
+   "weighted_density": 9.13,
+   "incidents": 461,
+   "by_type": {
+    "CRIMES AGAINST PROPERTY": 343,
+    "CRIMES AGAINST PERSONS": 51,
+    "CRIMES AGAINST SOCIETY": 67
+   },
+   "top_categories": [
+    [
+     "LARCENY - SHOPLIFTING",
+     54
+    ],
+    [
+     "ASSAULT - SIMPLE PHYSICAL",
+     35
+    ],
+    [
+     "VANDALISM - DAMAGE TO PROPERTY",
+     28
+    ],
+    [
+     "FRAUD - OBTAINING PROPERTY BY FALSE PRETENSE",
+     24
+    ],
+    [
+     "ORDINANCE - ANIMAL BITE",
+     24
+    ]
+   ],
+   "source": "cary_pd",
+   "scope": "town-wide, 365d avg",
+   "jev_state": "West Cary (town-wide, 365d avg), last 90 days: 461 reported incidents \u2014 51 against persons, 343 property, 67 society. Most common: Larceny - Shoplifting 54, Assault - Simple Physical 35, Vandalism - Damage To Property 28, Fraud - Obtaining Property By False Pretense 24, Ordinance - Animal Bite 24. Severity-weighted density 9.13/sq mi."
+  }
+ }
+}

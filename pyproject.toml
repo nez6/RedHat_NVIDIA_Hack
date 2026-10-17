@@ -1,0 +1,21 @@
+[project]
+name = "dreamhome-ai"
+version = "1.1.0"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -m 'not live'"
+markers = ["live: hits real FRED / police APIs (network required)"]
+
+[tool.ruff]
+line-length = 180
+extend-exclude = ["env"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E401", "E731"]
+
+[tool.ruff.lint.per-file-ignores]
+"data/make_data.py" = ["E501", "E701", "E702"]  # compact seed-data generator

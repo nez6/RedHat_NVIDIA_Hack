@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import agents, tools as T
+from . import agents, jev as J, live, tools as T
 
 app = FastAPI(title="DreamHome AI (Nemotron)")
 STATIC = os.path.join(os.path.dirname(__file__), "static")
@@ -28,6 +28,11 @@ def health():
     return agents.health()
 
 
+@app.get("/api/data-status")
+def data_status():
+    return {**live.status(), "jev_enabled": J.enabled()}
+
+
 @app.get("/api/meta")
 def meta():
     return {"cities": T.CITIES, "features": T.FEATURES, "destinations": sorted(T.DESTINATIONS),
@@ -37,7 +42,7 @@ def meta():
 @app.post("/api/rescore")
 def rescore(body: dict):
     """Instant re-rank when the user drags a weight slider (no LLM call)."""
-    return T.score_matrix(body["ids"], body.get("profile", {}), body["weights"])
+    return T.score_matrix(body["ids"], body.get("profile", {}), body["weights"], body.get("jev"))
 
 
 @app.post("/api/match")

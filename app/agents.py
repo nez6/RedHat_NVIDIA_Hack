@@ -14,11 +14,12 @@ import json, os, re, time
 from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
 
-from . import tools as T
+from . import jev as J, live, tools as T
 
 BASE_URL = os.getenv("NEMOTRON_BASE_URL", "http://localhost:8000/v1")
 API_KEY = os.getenv("NEMOTRON_API_KEY", "EMPTY")
-client = OpenAI(base_url=BASE_URL, api_key=API_KEY, timeout=float(os.getenv("NEMOTRON_TIMEOUT", "60")))
+client = OpenAI(base_url=BASE_URL, api_key=API_KEY, timeout=float(os.getenv("NEMOTRON_TIMEOUT", "60")),
+                max_retries=int(os.getenv("NEMOTRON_MAX_RETRIES", "2")))
 _MODEL = os.getenv("NEMOTRON_MODEL")
 # Nemotron 3 has a reasoning mode; off by default for speed, set NEMOTRON_THINKING=1 to enable.
 THINKING = os.getenv("NEMOTRON_THINKING", "0") == "1"
@@ -88,7 +89,7 @@ def run_agent(name, system, user, tool_names, emit, max_steps=6, capture=None):
 
 
 # ---------------- individual agents ----------------
-DEFAULT_WEIGHTS = {"affordability": 4, "safety": 4, "schools": 3, "commute": 3, "space": 3, "features": 3, "value": 2}
+DEFAULT_WEIGHTS = {"affordability": 4, "safety": 4, "schools": 3, "commute": 3, "space": 3, "features": 3, "value": 2, "fit": 4}
 
 
 def concierge(dream, form, emit):
@@ -177,9 +178,10 @@ def finance(ids, profile, emit):
 def matchmaker(rows, profile, emit):
     top = [{"id": r["listing"]["id"], "address": r["listing"]["address"], "neighborhood": r["listing"]["neighborhood"],
             "price": r["listing"]["price"], "total": r["total"], "scores": r["scores"],
-            "monthly": r["finance"]["monthly_total"]} for r in rows[:3]]
+            "monthly": r["finance"]["monthly_total"], "rate_pct": r["finance"]["rate_pct"],
+            "jev_verdict": (r.get("jev") or {}).get("verdict")} for r in rows[:3]]
     system = ("You are the Matchmaker. Given the buyer's dream and the decision-matrix results, write a warm, specific "
-              "recommendation: 1 short paragraph on the #1 home (cite 2-3 scores), then one line each for #2 and #3 "
+              "recommendation: 1 short paragraph on the #1 home (cite 2-3 scores exactly as given, and mention the live mortgage rate), then one line each for #2 and #3 "
               "on the trade-off vs #1. Under 140 words. Plain text, no markdown headers.")
     user = f"Dream: {profile.get('summary')}\nWeights: {profile['weights']}\nTop 3: {json.dumps(top)}"
     try:
@@ -195,17 +197,39 @@ def matchmaker(rows, profile, emit):
     return text
 
 
+def jev_layer(ids, profile, emit):
+    """Jev decision layer: one calibrated call per home (safety + fit + verdict), all in parallel."""
+    t0 = time.time()
+    items = []
+    for lid in ids:
+        L = T.BY_ID[int(lid)]
+        m = T.math_inputs(lid, profile)
+        lv = live.safety(L["neighborhood"])
+        items.append((lid, {"listing": L, "profile": profile, "math_scores": m,
+                            "safety_text": (lv or {}).get("jev_state") or f"{L['neighborhood']}: baseline safety index {m['safety_index']}.",
+                            "live_safety_index": m["safety_index"]}))
+    out = J.decide_batch(items)
+    engines = {d["engine"] for d in out.values()}
+    emit({"type": "jev", "agent": "Jev Decision Layer", "engine": "jev" if "jev" in engines else "rules",
+          "calls": len(out), "ms": int((time.time() - t0) * 1000),
+          "p50_call_ms": sorted(d["ms"] for d in out.values())[len(out) // 2] if out else 0,
+          "verdicts": {str(k): v["verdict"] for k, v in out.items()},
+          "errors": [v["error"] for v in out.values() if v.get("error")][:2]})
+    return {str(k): v for k, v in out.items()}
+
+
 # ---------------- orchestrator ----------------
 def run_pipeline(dream, form, emit):
     t0 = time.time()
-    emit({"type": "start", "health": health()})
+    emit({"type": "start", "health": health(), "data": live.status(), "jev_enabled": J.enabled()})
     profile = concierge(dream, form, emit)
     ids = scout(profile, emit)
     with ThreadPoolExecutor(2) as ex:  # Neighborhood + Finance run in parallel on Nemotron
         f1 = ex.submit(neighborhood, ids, profile, emit)
         f2 = ex.submit(finance, ids, profile, emit)
         f1.result(), f2.result()
-    rows = T.score_matrix(ids, profile, profile["weights"])
-    emit({"type": "matrix", "criteria": T.CRITERIA, "rows": rows, "weights": profile["weights"]})
+    jev = jev_layer(ids, profile, emit)
+    rows = T.score_matrix(ids, profile, profile["weights"], jev)
+    emit({"type": "matrix", "criteria": T.CRITERIA, "rows": rows, "weights": profile["weights"], "jev": jev})
     emit({"type": "recommendation", "text": matchmaker(rows, profile, emit)})
     emit({"type": "done", "ms": int((time.time() - t0) * 1000)})

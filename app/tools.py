@@ -1,6 +1,8 @@
 """Deterministic tools the Nemotron agents call. No LLM in here — pure data + math."""
 import csv, json, math, os
 
+from . import live
+
 DATA = os.path.join(os.path.dirname(__file__), "..", "data")
 
 with open(os.path.join(DATA, "listings.csv")) as f:
@@ -78,16 +80,22 @@ def neighborhood_report(listing_id, commute_destination="downtown raleigh"):
     dname, d = _dest(commute_destination)
     miles = _miles((r["lat"], r["lon"]), d)
     minutes = round(6 + miles * 1.9)  # rough Triangle drive time incl. traffic
-    return {"listing_id": r["id"], "neighborhood": h["name"], "safety_index": h["safety_index"],
+    lv = live.safety(h["name"])
+    return {"listing_id": r["id"], "neighborhood": h["name"],
+            "safety_index": lv["safety_index"] if lv else h["safety_index"],
+            "safety_source": f"{lv['source']} ({lv['scope']}, {lv['incidents']} incidents)" if lv else "baseline",
             "school_rating": h["school_rating"], "walk_score": h["walk_score"],
             "commute_to": dname, "commute_minutes": minutes}
 
 
-def affordability(listing_id, annual_income=None, down_payment_pct=20, rate_pct=6.5,
+def affordability(listing_id, annual_income=None, down_payment_pct=20, rate_pct=None,
                   property_tax_pct=1.0):
     r = BY_ID.get(int(listing_id))
     if not r:
         return {"error": f"listing {listing_id} not found"}
+    rate_src = {"source": "user"}
+    if rate_pct is None:
+        rate_pct, rate_src = live.mortgage_rate()
     loan = r["price"] * (1 - down_payment_pct / 100)
     m = rate_pct / 100 / 12
     pi = loan * m / (1 - (1 + m) ** -360)
@@ -95,7 +103,8 @@ def affordability(listing_id, annual_income=None, down_payment_pct=20, rate_pct=
     ins = r["price"] * 0.0035 / 12
     total = pi + tax + ins + r["hoa_monthly"]
     res = {"listing_id": r["id"], "price": r["price"], "down_payment": round(r["price"] * down_payment_pct / 100),
-           "monthly_total": round(total), "principal_interest": round(pi), "tax_ins_hoa": round(tax + ins + r["hoa_monthly"])}
+           "monthly_total": round(total), "principal_interest": round(pi), "tax_ins_hoa": round(tax + ins + r["hoa_monthly"]),
+           "rate_pct": rate_pct, "rate_source": rate_src.get("source"), "rate_as_of": rate_src.get("as_of")}
     if annual_income:
         res["housing_ratio_pct"] = round(total / (annual_income / 12) * 100, 1)
     hood = HOODS[r["neighborhood"]]
@@ -103,11 +112,21 @@ def affordability(listing_id, annual_income=None, down_payment_pct=20, rate_pct=
     return res
 
 
-# ---------------- decision matrix (deterministic "JEB" layer) ----------------
-CRITERIA = ["affordability", "safety", "schools", "commute", "space", "features", "value"]
+# ---------------- decision matrix ----------------
+# Math criteria are deterministic formulas. "safety" and "fit" are functional judgements from Jev
+# (app/jev.py) when a Jev decision is supplied, otherwise live index / rules.
+CRITERIA = ["affordability", "safety", "schools", "commute", "space", "features", "value", "fit"]
 
 
-def criterion_scores(listing_id, profile):
+def math_inputs(listing_id, profile):
+    """Numbers handed to Jev as pre-computed facts (Jev never does arithmetic)."""
+    n = neighborhood_report(listing_id, profile.get("commute_destination") or "downtown raleigh")
+    a = affordability(listing_id, profile.get("annual_income"), profile.get("down_payment_pct", 20))
+    return {"monthly": a["monthly_total"], "rate": a["rate_pct"], "ratio": a.get("housing_ratio_pct"),
+            "vs_area": a["price_vs_area_pct"], "commute_min": n["commute_minutes"], "safety_index": n["safety_index"]}
+
+
+def criterion_scores(listing_id, profile, jev=None):
     r = BY_ID[int(listing_id)]
     n = neighborhood_report(listing_id, profile.get("commute_destination") or "downtown raleigh")
     a = affordability(listing_id, profile.get("annual_income"), profile.get("down_payment_pct", 20))
@@ -121,22 +140,30 @@ def criterion_scores(listing_id, profile):
     wants = [f.lower() for f in profile.get("must_have_features") or []]
     features = 100 * sum(f in r["features"] for f in wants) / len(wants) if wants else min(100, len(r["features"]) * 14)
     value = max(0, min(100, 60 - a["price_vs_area_pct"] * 2))
-    return {"affordability": round(afford), "safety": n["safety_index"], "schools": n["school_rating"] * 10,
-            "commute": round(commute), "space": round(space), "features": round(features), "value": round(value)}
+    safety = n["safety_index"]
+    fit = round(0.6 * features + 0.4 * space)
+    if jev:
+        safety = round(0.5 * safety + 0.5 * jev["safety"]) if jev.get("safety") is not None else safety
+        fit = jev["fit"] if jev.get("fit") is not None else fit
+    return {"affordability": round(afford), "safety": safety, "schools": n["school_rating"] * 10,
+            "commute": round(commute), "space": round(space), "features": round(features), "value": round(value),
+            "fit": fit}
 
 
-def score_matrix(listing_ids, profile, weights):
+def score_matrix(listing_ids, profile, weights, jev=None):
     w = {c: float(weights.get(c, 1)) for c in CRITERIA}
     tw = sum(w.values()) or 1
     rows = []
     for lid in listing_ids:
         if int(lid) not in BY_ID:
             continue
-        s = criterion_scores(lid, profile)
+        j = (jev or {}).get(str(lid)) or (jev or {}).get(int(lid))
+        s = criterion_scores(lid, profile, j)
         total = sum(s[c] * w[c] for c in CRITERIA) / tw
         rows.append({"listing": BY_ID[int(lid)], "scores": s, "total": round(total, 1),
                      "neighborhood": neighborhood_report(lid, profile.get("commute_destination") or "downtown raleigh"),
-                     "finance": affordability(lid, profile.get("annual_income"), profile.get("down_payment_pct", 20))})
+                     "finance": affordability(lid, profile.get("annual_income"), profile.get("down_payment_pct", 20)),
+                     "jev": j})
     rows.sort(key=lambda x: -x["total"])
     return rows
 
@@ -168,9 +195,9 @@ SCHEMAS = {
         "limit": {"type": "integer"}}),
     "neighborhood_report": _fn("neighborhood_report", "Safety index, school rating, walk score and commute minutes for a listing.", {
         "listing_id": {"type": "integer"}, "commute_destination": {"type": "string"}}, ["listing_id"]),
-    "affordability": _fn("affordability", "Monthly payment estimate (PITI + HOA), housing ratio and price vs neighborhood median.", {
+    "affordability": _fn("affordability", "Monthly payment estimate (PITI + HOA) at the live FRED 30-yr rate, housing ratio and price vs neighborhood median.", {
         "listing_id": {"type": "integer"}, "annual_income": {"type": "integer"},
-        "down_payment_pct": {"type": "number"}, "rate_pct": {"type": "number"}}, ["listing_id"]),
+        "down_payment_pct": {"type": "number"}}, ["listing_id"]),
 }
 IMPLS = {"search_listings": search_listings, "neighborhood_report": neighborhood_report,
          "affordability": affordability}

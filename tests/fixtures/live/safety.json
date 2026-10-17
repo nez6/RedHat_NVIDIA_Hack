@@ -1,0 +1,3 @@
+{"fetched_at": "2026-10-17T19:00:00+00:00", "lookback_days": 90, "neighborhoods": {
+ "Oakwood": {"safety_index": 41, "weighted_density": 520.0, "incidents": 900, "by_type": {"CRIMES AGAINST PERSONS": 200, "CRIMES AGAINST PROPERTY": 650, "CRIMES AGAINST SOCIETY": 50}, "top_categories": [["LARCENY", 400]], "source": "raleigh_pd", "scope": "1 mi radius", "jev_state": "Oakwood (1 mi radius), last 90 days: 900 reported incidents."},
+ "Downtown Cary": {"safety_index": 66, "weighted_density": 40.0, "incidents": 1500, "by_type": {"CRIMES AGAINST PROPERTY": 1200}, "top_categories": [["LARCENY", 900]], "source": "cary_pd", "scope": "town-wide", "jev_state": "Downtown Cary (town-wide), last 90 days: 1500 reported incidents."}}}
