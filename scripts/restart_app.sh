@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 TAG="${1:-$(docker images estatepulse-app --format '{{.Tag}}' | sort -V | tail -1)}"
 mkdir -p data/cities data/testlab
+docker run --rm --user root -v estatepulse_intake:/i -v "$PWD/data/cities:/c" -v "$PWD/data/testlab:/t" "estatepulse-app:$TAG" chown -R 10001 /i /c /t >/dev/null 2>&1 || true  # app runs as uid 10001
 docker rm -f estatepulse >/dev/null 2>&1 || true
 docker run -d --name estatepulse --network host --restart unless-stopped \
   --env-file "$HOME/.estatepulse.env" \
