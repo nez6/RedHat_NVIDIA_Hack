@@ -78,7 +78,9 @@ def row_filter_sql(catalog=CATALOG_DEFAULT):
     adm, rea, cli = (ROLES[r]["group"] for r in ("admin", "realtor", "client"))
     return [
         f"CREATE OR REPLACE FUNCTION {sec}.`client_intake_filter`(email STRING) RETURNS BOOLEAN "
-        f"RETURN is_account_group_member('{adm}') OR is_account_group_member('{rea}') OR lower(email) = lower(current_user())",
+        # is_member() = workspace-level groups (Databricks Free Edition); is_account_group_member() = account groups
+        f"RETURN is_member('{adm}') OR is_member('{rea}') OR is_account_group_member('{adm}') OR is_account_group_member('{rea}') "
+        f"OR lower(email) = lower(current_user())",
         f"ALTER TABLE {sec}.`client_intake` SET ROW FILTER {sec}.`client_intake_filter` ON (client_email)",
         f"GRANT USE SCHEMA ON SCHEMA {sec} TO `{cli}`",
         f"GRANT SELECT ON TABLE {sec}.`client_intake` TO `{cli}`",
@@ -109,3 +111,13 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def for_principals(group, statement, principals):
+    """Re-target one group GRANT at individual users. Databricks Free Edition has workspace-level groups only, and
+    Unity Catalog grants need an account-level principal, so each member of the workspace group is granted directly."""
+    return [statement.replace(f"TO `{group}`", f"TO `{p}`") for p in principals]
+
+
+def principal_missing(err):
+    return "PRINCIPAL_DOES_NOT_EXIST" in str(err) or "Could not find principal" in str(err)

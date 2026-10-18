@@ -38,4 +38,8 @@ COPY requirements-dev.txt pyproject.toml ./
 COPY tests/ tests/
 COPY resources_servers/ resources_servers/
 COPY databricks/ databricks/
+COPY scripts/ scripts/
 RUN pip install -r requirements-dev.txt && ruff check app pipeline tests && pytest -q
+
+# ---- runtime (default target): docker build . must produce the app image, not the test image
+FROM base AS runtime

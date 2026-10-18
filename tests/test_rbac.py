@@ -114,3 +114,26 @@ def test_portal_link_still_unlocks_matches_without_an_account():
 def test_home_page_ships_no_passwords():
     html = anon().get("/").text
     assert "RealtorDemo2026" not in html and "ClientDemo2026" not in html and "Admin (tester)" in html
+
+
+def test_free_edition_grants_fall_back_to_workspace_group_members():
+    import importlib.util, os
+    spec = importlib.util.spec_from_file_location("dbsetup", os.path.join(os.path.dirname(__file__), "..", "scripts", "databricks_setup.py"))
+    S = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(S)
+    ran = []
+
+    class Warehouse:
+        def sql(self, stmt):
+            if "TO `estatepulse_" in stmt:  # Free Edition: workspace groups aren't UC principals
+                raise RuntimeError("[PRINCIPAL_DOES_NOT_EXIST] Could not find principal with name estatepulse_admins")
+            ran.append(stmt)
+
+    members = {"estatepulse_admins": ["nat@example.com"], "estatepulse_realtors": ["agent@example.com"], "estatepulse_clients": []}
+    setup, grants = S.statements("workspace")
+    assert not any("CREATE GROUP" in s.upper() for s in setup + [g for _, g in grants])  # groups already exist
+    report = S.apply_grants(Warehouse(), grants, members=lambda g: members[g])
+    assert any("TO `nat@example.com`" in s and "ALL PRIVILEGES" in s for s in ran)
+    assert any("TO `agent@example.com`" in s and "client_intake" in s for s in ran)
+    assert {r["status"] for r in report if r["principal"] == "estatepulse_clients"} == {"workspace group has no members yet (add people, then re-run)"}
+    assert "is_member('estatepulse_admins')" in " ".join(R.row_filter_sql())
