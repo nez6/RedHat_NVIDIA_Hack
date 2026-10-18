@@ -1,5 +1,5 @@
 """Tiny stdlib HTTP helper with retries (no third-party deps so CI stays fast)."""
-import json, time, urllib.parse, urllib.request
+import json, re, time, urllib.parse, urllib.request
 
 from .config import HTTP_TIMEOUT, USER_AGENT
 
@@ -17,4 +17,5 @@ def get(url, params=None, retries=3, backoff=1.5, as_json=True):
         except Exception as e:  # network, HTTP or JSON errors
             last = e
             time.sleep(backoff ** attempt)
-    raise RuntimeError(f"GET failed after {retries} tries: {url[:120]} ({last})")
+    safe = re.sub(r"(?i)((?:api_)?key|token)=[^&]+", r"\1=***", url)  # never echo API keys into logs or UI
+    raise RuntimeError(f"GET failed after {retries} tries: {safe[:120]} ({last})")
