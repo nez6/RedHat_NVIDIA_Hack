@@ -24,6 +24,13 @@ x-app-env: &app-env
   ADMIN_TOKEN: ${ADMIN_TOKEN:-}                   # advisors mark kickoff meetings done
   PORTAL_SECRET: ${PORTAL_SECRET:-}               # signs portal sign-in links (app and invites must share it)
   PORTAL_BASE_URL: ${PORTAL_BASE_URL:-http://localhost:8501}
+  SESSION_SECRET: ${SESSION_SECRET:-}             # signs sign-in cookies (defaults to PORTAL_SECRET)
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@estatepulse.com}       # RBAC accounts (app/rbac.py); no password = account disabled
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+  REALTOR_EMAIL: ${REALTOR_EMAIL:-realtor@estatepulse.com}
+  REALTOR_PASSWORD: ${REALTOR_PASSWORD:-}
+  CLIENT_EMAIL: ${CLIENT_EMAIL:-client@estatepulse.com}
+  CLIENT_PASSWORD: ${CLIENT_PASSWORD:-}
 
 services:
   vllm:

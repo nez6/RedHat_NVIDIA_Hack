@@ -18,6 +18,18 @@ os.environ["INTAKE_DIR"] = os.path.join(_TMP, "intake")
 for k in ("RENTCAST_API_KEY", "GOOGLE_MAPS_API_KEY", "DATABRICKS_HOST", "DATABRICKS_TOKEN", "ADMIN_TOKEN"):
     os.environ.pop(k, None)
 os.environ["PORTAL_SECRET"] = "test-secret"
+# RBAC: one test account per role (app/rbac.py); no other accounts
+os.environ.pop("EP_USERS", None)
+for _role in ("admin", "realtor", "client"):
+    os.environ[f"{_role.upper()}_EMAIL"] = f"{_role}@test.estatepulse"
+    os.environ[f"{_role.upper()}_PASSWORD"] = f"{_role}-test-password"
+
+
+def login(client, role):
+    """Sign a TestClient in as one of the three RBAC roles."""
+    r = client.post("/api/login", json={"email": f"{role}@test.estatepulse", "password": f"{role}-test-password", "role": role})
+    assert r.status_code == 200, r.text
+    return client
 sys.path.insert(0, os.path.abspath(os.path.join(HERE, "..")))
 
 

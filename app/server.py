@@ -3,12 +3,12 @@
 Run:  uvicorn app.server:app --host 0.0.0.0 --port 8501
 """
 import itertools, json, os, queue, re, threading, time
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agents, intake as I, jev as J, live, metric_agents as MA, metrics as M, tools as T, valuation
+from . import agents, auth as A, intake as I, jev as J, live, metric_agents as MA, metrics as M, rbac as R, tools as T, valuation
 from pipeline import http as pipeline_http
 from pipeline import listings as PL
 from pipeline.sources import zillow as Z
@@ -26,9 +26,105 @@ class MatchRequest(BaseModel):
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
+# ------------------------------------------------------------------ RBAC helpers (roles + permissions: app/rbac.py)
+def need(request: Request, permission, portal_token=None):
+    """The signed-in user if their role has the permission; a valid portal link counts as a client for match:run."""
+    user = A.current_user(request)
+    if user and R.allowed(user["role"], permission):
+        return user
+    if portal_token and permission == "match:run" and I.verify_token(portal_token):
+        return {"role": "client", "via": "portal_link"}
+    if user:
+        raise HTTPException(403, f"the {user['role']} role can't do that")
+    raise HTTPException(401, "sign in required")
+
+
+def page(request: Request, name, filename, token=None):
+    user = A.current_user(request)
+    if (user and R.can_view(user["role"], name)) or (token and I.verify_token(token)):
+        return FileResponse(os.path.join(STATIC, filename))
+    return RedirectResponse(f"./?login=1&next={name}", status_code=303)
+
+
 @app.get("/")
-def index():
-    return FileResponse(os.path.join(STATIC, "index.html"))
+def home():
+    """Estate Pulse site: landing page, sign-in, realtor workspace and client portal."""
+    return FileResponse(os.path.join(STATIC, "home.html"))
+
+
+@app.get("/app")
+def tester_app(request: Request, token: str = ""):
+    """The 6-agent decision matrix (admin tester UI; realtors and clients reach it from their workspaces)."""
+    return page(request, "app", "index.html", token)
+
+
+@app.post("/api/login")
+def login(body: dict, request: Request):
+    try:
+        user = A.authenticate(body.get("email"), body.get("password"), body.get("role") or None)
+    except PermissionError as e:
+        raise HTTPException(401, str(e))
+    resp = JSONResponse({**user, "home": R.ROLES[user["role"]]["home"]})
+    A.set_cookie(resp, request, user)
+    return resp
+
+
+@app.post("/api/login/portal")
+def login_portal(body: dict, request: Request):
+    """A client signs in with the signed link from their Home Match email."""
+    intake_id = I.verify_token(body.get("token"))
+    rec = I.load(intake_id) if intake_id else None
+    if not rec:
+        raise HTTPException(401, "this sign-in link is invalid or has expired")
+    user = {"email": rec["answers"]["email"], "role": "client", "name": rec["answers"]["name"], "intake_id": rec["id"]}
+    resp = JSONResponse({**user, "home": "client"})
+    A.set_cookie(resp, request, user)
+    return resp
+
+
+@app.post("/api/logout")
+def logout():
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(A.COOKIE, path="/")
+    return resp
+
+
+@app.get("/api/me")
+def me(request: Request):
+    user = A.current_user(request)
+    if not user:
+        return {"signed_in": False}
+    role = R.ROLES[user["role"]]
+    out = {"signed_in": True, **user, "label": role["label"], "group": role["group"], "home": role["home"],
+           "pages": sorted(role["pages"]), "permissions": sorted(role["permissions"])}
+    if user["role"] == "client":  # their own latest questionnaire, if any
+        recs = [r for r in I.all_records() if r["id"] == user.get("intake_id") or r["answers"]["email"].lower() == user["email"]]
+        if recs:
+            rec = sorted(recs, key=lambda r: r["created_at"])[-1]
+            out["intake"] = I.public_view(rec)
+            out["portal_token"] = I.portal_token(rec["id"])
+    return out
+
+
+@app.get("/api/rbac")
+def rbac_catalog(request: Request):
+    need(request, "system:diagnostics")
+    return {"roles": R.describe(), "unity_catalog_grants": [{"group": g, "sql": q} for g, q in R.uc_grants()],
+            "row_filter": R.row_filter_sql()}
+
+
+@app.get("/api/intakes")
+def list_intakes(request: Request):
+    """Realtor / admin view of Home Match Toolkit submissions (never document contents or paths)."""
+    need(request, "intake:list")
+    rows = []
+    for rec in sorted(I.all_records(), key=lambda r: r["created_at"], reverse=True):
+        v = I.public_view(rec)
+        rows.append({"id": rec["id"], "created_at": rec["created_at"], "name": v["name"], "email": rec["answers"]["email"],
+                     "financing": v["financing"], "status": v["status"], "document_received": v["document_received"],
+                     "showings_unlocked": v["showings_unlocked"], "kickoff_completed": v["kickoff_completed"],
+                     "summary": rec["profile"].get("summary")})
+    return {"intakes": rows}
 
 
 @app.get("/start")
@@ -47,14 +143,15 @@ def value_page():
 
 
 @app.get("/how")
-def how_page():
-    return FileResponse(os.path.join(STATIC, "how.html"))
+def how_page(request: Request):
+    return page(request, "how", "how.html")
 
 
 @app.get("/api/explain/{listing_id}")
-def explain(listing_id: int, max_price: int = 550000, annual_income: int = 165000, min_beds: int = 3,
+def explain(request: Request, listing_id: int, max_price: int = 550000, annual_income: int = 165000, min_beds: int = 3,
             commute_destination: str = "rtp"):
     """Every factor calculation for one listing: score, formula and inputs."""
+    need(request, "match:run", request.headers.get("x-portal-token"))
     if listing_id not in T.BY_ID:
         raise HTTPException(404, "unknown listing")
     profile = {"max_price": max_price, "annual_income": annual_income, "min_beds": min_beds,
@@ -113,13 +210,14 @@ def value(req: ValueRequest):
 
 
 @app.get("/architecture")
-def architecture():
-    return FileResponse(os.path.join(STATIC, "architecture.html"))
+def architecture(request: Request):
+    return page(request, "architecture", "architecture.html")
 
 
 @app.get("/api/fallback-demo")
-def fallback_demo():
+def fallback_demo(request: Request):
     """Real failure injection: police API down + Jev transport error -> cached snapshot + rule engine."""
+    need(request, "system:diagnostics")
     log = []
     t0 = time.time()
     try:
@@ -145,8 +243,9 @@ def fallback_demo():
 
 
 @app.post("/api/narrate")
-def narrate(body: dict):
+def narrate(body: dict, request: Request):
     """One short Nemotron narrative for a single scored home (shows live vLLM latency)."""
+    need(request, "match:narrate")
     rows = T.score_matrix([body["id"]], body.get("profile", {}), body.get("weights", {}))
     if not rows:
         return {"error": "unknown listing"}
@@ -165,8 +264,9 @@ def narrate(body: dict):
 
 
 @app.post("/v1/systemone")
-def systemone(body: dict):
+def systemone(body: dict, request: Request):
     """Jev-compatible decision endpoint (state + typed questions -> probabilistic answers), served by our vLLM."""
+    need(request, "system:diagnostics")
     if not isinstance(body.get("state"), str) or not isinstance(body.get("questions"), dict) or not body["questions"]:
         raise HTTPException(400, "need 'state' (string) and 'questions' (object)")
     for k, q in body["questions"].items():
@@ -224,14 +324,16 @@ def portal(token: str):
 
 
 @app.post("/api/admin/intake/{intake_id}/kickoff")
-def kickoff(intake_id: str, body: dict = None, x_admin_token: str = Header(default="")):
-    """Advisor marks the kickoff meeting done; scripts/send_portal_invites.py then emails the sign-in link."""
+def kickoff(intake_id: str, request: Request, body: dict = None, x_admin_token: str = Header(default="")):
+    """Advisor marks the kickoff meeting done; scripts/send_portal_invites.py then emails the sign-in link.
+    Allowed for a signed-in admin / realtor, or a script holding ADMIN_TOKEN."""
     import hmac
+    user = A.current_user(request)
     want = os.getenv("ADMIN_TOKEN", "")
-    if not want or not hmac.compare_digest(x_admin_token, want):
-        raise HTTPException(403, "admin token required")
+    if not (user and R.allowed(user["role"], "intake:kickoff")) and not (want and hmac.compare_digest(x_admin_token, want)):
+        raise HTTPException(403, "admin or realtor sign-in (or the admin token) required")
     try:
-        rec = I.mark_kickoff(intake_id, (body or {}).get("advisor"))
+        rec = I.mark_kickoff(intake_id, (body or {}).get("advisor") or (user or {}).get("email"))
     except I.IntakeError as e:
         raise HTTPException(400, str(e))
     if not rec:
@@ -246,8 +348,9 @@ def zillow_search_url(location: str):
 
 
 @app.post("/api/zillow/import")
-def zillow_import(body: dict):
+def zillow_import(body: dict, request: Request):
     """A Zillow page the user saved from their own browser: {name, html}. Parsed, cleaned, added to the listing store."""
+    need(request, "listings:import")
     page = body.get("html") or ""
     if not page or len(page) > 15_000_000:
         raise HTTPException(400, "send the saved page's HTML (max 15 MB)")
@@ -269,8 +372,9 @@ def zillow_import(body: dict):
 
 
 @app.get("/api/gym")
-def gym_summary():
+def gym_summary(request: Request):
     """Latest NeMo Gym evaluation / RL rollout summary (written by scripts/gym_summary.py)."""
+    need(request, "system:diagnostics")
     path = os.path.join(os.path.dirname(__file__), "..", "results", "gym", "summary.json")
     try:
         with open(path) as f:
@@ -288,21 +392,27 @@ def meta():
 
 
 @app.post("/api/rescore")
-def rescore(body: dict):
+def rescore(body: dict, request: Request):
     """Instant re-rank when the user drags a weight slider (no LLM call)."""
+    need(request, "match:run", request.headers.get("x-portal-token"))
     return T.score_matrix(body["ids"], body.get("profile", {}), body["weights"], body.get("jev"))
 
 
 @app.post("/api/match")
-def match(req: MatchRequest):
+def match(req: MatchRequest, request: Request):
+    user = need(request, "match:run", req.portal_token)
     q: "queue.Queue" = queue.Queue()
 
-    profile = None
+    profile, rec = None, None
     if req.portal_token:
         intake_id = I.verify_token(req.portal_token)
         rec = I.load(intake_id) if intake_id else None
         if not rec:
             raise HTTPException(401, "sign-in link invalid or expired")
+    elif user.get("role") == "client" and user.get("email"):  # signed-in client: use their own latest questionnaire
+        mine = [r for r in I.all_records() if r["answers"]["email"].lower() == user["email"]]
+        rec = sorted(mine, key=lambda r: r["created_at"])[-1] if mine else None
+    if rec:
         profile = dict(rec["profile"])
         if req.form.get("weights"):
             profile["weights"] = {**profile["weights"], **req.form["weights"]}

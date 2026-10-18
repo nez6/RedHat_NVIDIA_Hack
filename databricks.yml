@@ -63,6 +63,10 @@ resources:
           depends_on: [{task_key: silver}]
           notebook_task:
             notebook_path: ./databricks/03_gold_jev_ready.py
+        - task_key: rbac
+          depends_on: [{task_key: gold}]
+          notebook_task:
+            notebook_path: ./databricks/04_rbac_grants.py
 
 targets:
   dev:

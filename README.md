@@ -409,3 +409,37 @@ New settings: `RENTCAST_API_KEY`, `GOOGLE_MAPS_API_KEY`, `LISTINGS_SOURCE`, `ADM
 ## ⚖️ Responsible use
 
 Scores are decision support, not financial advice. Neighborhood data describes places, never people. The buyer sets how much safety and schools count, and every score shows its source and formula (`/how`), to stay clear of steering under the Fair Housing Act.
+
+
+## 🔐 New UI + role-based access (RBAC)
+
+The Estate Pulse site is now the front door (`/`): landing page, sign-in, the **Realtor workspace** (12-step process) and the **Client portal** (6-month plan). It is wired to the EstatePulse AI features:
+
+- **Realtors:** Step 03 sends the Home Match Toolkit and shows submissions, with "Mark kickoff done". They also get a "Home Match intakes" view, the AI decision matrix, how-we-score and the value calculator.
+- **Clients:** see their Home Match profile, showing status, matched homes and portal.
+
+One RBAC catalog, `app/rbac.py`, defines the three groups for both the app and Unity Catalog:
+
+| Role | Databricks group | Lands on | Can |
+|---|---|---|---|
+| **admin** (tester) | `estatepulse_admins` | `/app`, the original tester UI (matrix, value, how we score, architecture), plus both workspaces via `/?view=realtor` and `/?view=client` | everything, incl. diagnostics, failure injection, NeMo Gym, raw Jev endpoint |
+| **realtor** | `estatepulse_realtors` | Realtor workspace | run matches, import Zillow pages, see client intakes (status only), mark kickoff meetings done |
+| **client** | `estatepulse_clients` | Client portal | their own questionnaire, matches and portal |
+
+**How sign-in works**
+
+- Accounts are checked on the server. Passwords live only in environment variables and are hashed with PBKDF2 in memory; none are in the page.
+- Set `ADMIN_PASSWORD`, `REALTOR_PASSWORD` and `CLIENT_PASSWORD`. Emails default to `admin@`, `realtor@` and `client@estatepulse.com`. For more people, use `EP_USERS='[{"email":"…","role":"realtor","password":"…"}]'`.
+- An account with no password is disabled.
+- Sessions use a signed HttpOnly cookie (`SESSION_SECRET`, 12 hours), and sign-in locks out after 5 failed attempts.
+- A client can also sign in with the signed link from their Home Match email.
+- Every API checks the role. `/start`, `/value` and the landing page stay public.
+
+**Unity Catalog**
+
+- `python scripts/databricks_groups.py` creates the three groups.
+- The ELT job's new `rbac` task (`databricks/04_rbac_grants.py`) applies the grants:
+  - **Admins:** all privileges on bronze, silver, gold and secure.
+  - **Realtors:** read silver and gold, plus read-only access to `client_intake` and the documents volume.
+  - **Clients:** only `gold.jev_ready_listings`, plus their own `client_intake` row through a row filter on `current_user()`.
+- `python -m app.rbac --sql` prints the SQL.

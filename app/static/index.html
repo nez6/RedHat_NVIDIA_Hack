@@ -158,7 +158,7 @@ function matrixUI(rows){
   $("homes").innerHTML=rows.slice(0,9).map((r,i)=>{const L=r.listing,N=r.neighborhood,F=r.finance;return `<div class="home"><div class="meta">#${i+1} · fit ${r.total}</div><div class="p">${fmt(L.price)}</div><div>${esc(L.address)}, ${esc(L.city)}</div><div class="meta">${L.beds} bd · ${L.baths} ba · ${L.sqft.toLocaleString()} sqft · ${esc(L.property_type)}${L.source&&L.source!=="synthetic_sample"?" · "+esc(L.source.replace(/_/g," ")):""}</div><div class="meta">≈ ${fmt(F.monthly_total)}/mo @ ${F.rate_pct}%${F.housing_ratio_pct?` (${F.housing_ratio_pct}% of income)`:""} · ${N.commute_minutes} min to ${N.commute_to}</div><div class="f">${L.features.slice(0,5).map(f=>`<span>${esc(f)}</span>`).join("")}</div><a class="math" href="how?id=${L.id}">See the math →</a>${L.url&&/^https:\/\/www\.zillow\.com\//.test(L.url)?` · <a class="math" target="_blank" rel="noopener" href="${esc(L.url)}">Zillow →</a>`:""}</div>`}).join("");
 }
 let rsT; function rescore(){ if(!state.ids.length)return; clearTimeout(rsT); rsT=setTimeout(async()=>{
-  const r=await fetch("api/rescore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:state.ids,profile:state.profile||{},weights:state.weights,jev:state.jev})}).then(r=>r.json()); matrixUI(r);},120);}
+  const r=await fetch("api/rescore",{method:"POST",headers:{"Content-Type":"application/json","X-Portal-Token":state.token||""},body:JSON.stringify({ids:state.ids,profile:state.profile||{},weights:state.weights,jev:state.jev})}).then(r=>r.json()); matrixUI(r);},120);}
 function log(html){$("log").insertAdjacentHTML("beforeend",html+"<br>");$("log").scrollTop=1e9;}
 const t0={};
 function onEvent(e){

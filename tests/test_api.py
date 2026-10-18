@@ -4,8 +4,9 @@ import json
 from fastapi.testclient import TestClient
 
 from app.server import app
+from conftest import login
 
-client = TestClient(app)
+client = login(TestClient(app), "admin")  # the tester UI; per-role access is covered in test_rbac.py
 
 
 def m_criteria():
@@ -103,7 +104,8 @@ def test_gym_summary_endpoint_never_fails():
 
 def test_pages_are_served():
     for path, marker in (("/value", "Free home value calculator"), ("/how", "How we score a home"), ("/static/nav.js", "Home Match Toolkit"),
-                         ("/start", "SUBMIT &amp; UNLOCK SHOWINGS"), ("/portal", "Home Match Portal")):
+                         ("/start", "SUBMIT &amp; UNLOCK SHOWINGS"), ("/portal", "Home Match Portal"), ("/", "ESTATE PULSE"),
+                         ("/app", "DreamHome AI")):
         r = client.get(path)
         assert r.status_code == 200 and marker in r.text, path
 
