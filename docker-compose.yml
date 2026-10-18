@@ -20,6 +20,10 @@ x-app-env: &app-env
   DATABRICKS_CATALOG: ${DATABRICKS_CATALOG:-workspace}
   LISTINGS_SOURCE: ${LISTINGS_SOURCE:-both}       # zillow | sample | both
   RENTCAST_API_KEY: ${RENTCAST_API_KEY:-}         # live for-sale listings by location (free plan: 50 requests/month)
+  FBI_API_KEY: ${FBI_API_KEY:-}                   # free api.data.gov key for FBI crime data on new cities (DEMO_KEY otherwise)
+  CENSUS_API_KEY: ${CENSUS_API_KEY:-}             # free; tract home values for new cities (price/sq ft falls back to 200)
+  CITY_MAX_AREAS: ${CITY_MAX_AREAS:-24}
+  CITY_CACHE_DAYS: ${CITY_CACHE_DAYS:-7}
   GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}   # commute minutes via Distance Matrix
   ADMIN_TOKEN: ${ADMIN_TOKEN:-}                   # advisors mark kickoff meetings done
   PORTAL_SECRET: ${PORTAL_SECRET:-}               # signs portal sign-in links (app and invites must share it)
@@ -80,6 +84,7 @@ services:
       - ./results:/app/results:ro
       - intake:/app/data/intake
       - ./data/zillow:/app/data/zillow
+      - ./data/cities:/app/data/cities  # live city lookups (pipeline/city.py), cached 7 days
     restart: unless-stopped
 
   app-hostnet:

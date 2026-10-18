@@ -14,3 +14,4 @@ untitled.py
 *.tmp
 data/intake/
 data/listings_cache/
+data/cities/

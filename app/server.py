@@ -311,8 +311,36 @@ def create_intake(body: dict):
         raise HTTPException(400, str(e))
     except Exception as e:  # storage failure: never echo internals or document details
         raise HTTPException(503, f"could not store your submission right now ({type(e).__name__}); please try again")
+    # a city outside the Triangle: start loading its public data now, so the dashboard is ready before the portal link goes out
+    cities = T.ensure_cities(rec["answers"].get("areas"), wait=False)
     return {"id": rec["id"], "portal_token": I.portal_token(rec["id"]), "showings_unlocked": rec["showings_unlocked"],
-            "document_stored_in": (rec.get("document") or {}).get("stored_in"), "profile": rec["profile"]}
+            "document_stored_in": (rec.get("document") or {}).get("stored_in"), "profile": rec["profile"], "city_lookup": cities}
+
+
+@app.get("/api/city/status")
+def city_status(q: str):
+    """Is public data for this city loaded? ready | loading | failed | unknown (Triangle areas are always ready)."""
+    from pipeline import city
+    todo = city.needs_lookup(q, known={h["city"] for h in T.HOODS.values()} | set(T.HOODS))
+    if not todo:
+        return {"query": q, "cities": [], "status": "ready", "note": "covered by the Triangle data"}
+    rows = [{"city": t, **city.status(t)} for t in todo]
+    for r in rows:
+        if r.get("status") == "ready" and not any(h.get("city") == r.get("city") and h.get("generated") for h in T.HOODS.values()):
+            T.register_city(city.cached(r["city"] if not r.get("state") else f"{r['city']}, {r['state']}"))
+    st = {r.get("status") for r in rows}
+    overall = "failed" if "failed" in st else "loading" if "loading" in st else "ready" if st == {"ready"} else "unknown"
+    return {"query": q, "cities": rows, "status": overall}
+
+
+@app.post("/api/city/load")
+def city_load(body: dict, request: Request, x_portal_token: str = Header(default="")):
+    """Start the live lookup for a new city (runs in the background; poll /api/city/status)."""
+    need(request, "match:run", x_portal_token or body.get("portal_token"))
+    q = (body.get("location") or "").strip()[:120]
+    if not q:
+        raise HTTPException(400, "location required, e.g. 'Austin, TX'")
+    return {"query": q, "cities": T.ensure_cities(q, wait=False)}
 
 
 @app.get("/api/portal")

@@ -19,7 +19,7 @@ COPY data/ data/
 COPY scripts/send_portal_invites.py scripts/
 
 # data/intake (client records, dev document fallback) and data/zillow (parsed listings) are writable volumes
-RUN mkdir -p data/intake data/zillow/saved data/listings_cache \
+RUN mkdir -p data/intake data/zillow/saved data/listings_cache data/cities \
  && useradd --create-home --uid 10001 estatepulse && chown -R estatepulse /app && chmod 700 data/intake
 USER estatepulse
 

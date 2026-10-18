@@ -49,8 +49,11 @@ def _miles(a, b):
 
 
 def _hoods():
+    """Triangle neighborhood profiles + areas of every city looked up live (pipeline/city.py)."""
+    from . import city
     with open(os.path.join(DATA_DIR, "neighborhoods.json")) as f:
-        return json.load(f)
+        hoods = json.load(f)
+    return hoods + [a for doc in city.all_cached() for a in doc.get("areas") or []]
 
 
 def features(rec):

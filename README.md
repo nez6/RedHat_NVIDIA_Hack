@@ -463,3 +463,24 @@ env/bin/python -m pipeline.listings       # Zillow pages + Redfin CSVs, cleaned 
 ```
 
 FRED, the Raleigh/Cary police feeds, FEMA flood zones, Open-Meteo air quality (non-commercial), Databricks Free Edition and your own Nemotron/vLLM were already free.
+
+## Live city lookup (any US city)
+
+Type a city outside the Triangle, such as "Austin, TX", into the questionnaire or the search box. The app then fetches and parses that city's free public data on the spot (`pipeline/city.py`) and caches the result in `data/cities/<city>.json` for 7 days.
+
+| Data | Source |
+|---|---|
+| Center and city limits | OpenStreetMap Nominatim |
+| County, metro (CBSA) and school district | US Census geocoder |
+| Up to 24 census tracts, used as the city's "neighborhoods" | Census TIGERweb |
+| Tract median home value (estimated price per sq ft) | Census ACS |
+| School locations and % proficient | NCES + Urban Institute Education Data API (the latest year available is 2020) |
+| Crime rate vs the US average | FBI Crime Data Explorer, city police agency. This is **city-wide** data. |
+| Flood zone, air quality, weather extremes, walkability | FEMA, Open-Meteo, NOAA ACIS, EPA |
+| Metro house-price trend | FRED / FHFA |
+
+**When it runs.** The lookup starts as soon as the client submits the questionnaire (`POST /api/intake`). By the time the kickoff meeting is done and the portal link is emailed, the dashboard is already built. In the search UI it starts when the location field changes (`POST /api/city/load`). `GET /api/city/status?q=` reports ready, loading or failed.
+
+**Listings.** A new city still needs homes before anything can be scored. Use a Redfin "Download All" CSV, a saved Zillow page, or `RENTCAST_API_KEY`. Imported homes are matched to the nearest tract automatically.
+
+**Settings.** `FBI_API_KEY` is free from api.data.gov; without it the app uses the rate-limited DEMO_KEY. `CENSUS_API_KEY` is free from api.census.gov/data/key_signup.html and adds tract home values; without it price per sq ft falls back to 200. `CITY_MAX_AREAS` defaults to 24, `CITY_CACHE_DAYS` to 7, and `CITY_LOOKUP=off` disables the lookup.

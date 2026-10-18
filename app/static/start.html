@@ -79,8 +79,8 @@
         <div><label for="min_beds">Min bedrooms</label><input id="min_beds" type="number" min="0" max="10" value="3"></div>
         <div><label for="min_baths">Min bathrooms</label><input id="min_baths" type="number" min="0" max="10" value="2"></div>
       </div>
-      <label for="areas">Target neighborhoods / ZIP codes</label>
-      <input id="areas" placeholder="e.g. Cary, 27513, Apex">
+      <label for="areas">Target neighborhoods / ZIP codes / city</label>
+      <input id="areas" placeholder="e.g. Cary, 27513, Apex — or another city, like Austin, TX">
       <label>Must-have features (optional)</label><div class="chips" id="features"></div>
     </div>
 
@@ -165,7 +165,8 @@ $("f").onsubmit = async e => {
     try { sessionStorage.setItem("portal_token", d.portal_token); } catch (_) {}
     $("f").style.display = "none"; $("done").style.display = "block";
     $("done-msg").textContent = (d.showings_unlocked ? "Showings are unlocked. " : (financing === "need_lender" ? "We'll introduce you to a lender at your kickoff meeting. " : "Upload your document any time to unlock showings. "))
-      + "After your kickoff meeting we'll email you a private sign-in link to your portal.";
+      + "After your kickoff meeting we'll email you a private sign-in link to your portal."
+      + ((d.city_lookup || []).length ? " We're gathering neighborhood data for " + d.city_lookup.map(c => c.city).join(", ") + " now." : "");
     $("see").href = "./?token=" + encodeURIComponent(d.portal_token);
   } catch (err) { $("err").textContent = err.message; }
   $("go").disabled = false; $("go").textContent = "SUBMIT & UNLOCK SHOWINGS";

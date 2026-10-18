@@ -102,7 +102,8 @@ header{position:static}
       <div><label>Min beds</label><input id="min_beds" type="number" min="0" placeholder="any"></div>
       <div><label>Down payment %</label><input id="down_payment_pct" type="number" value="20"></div>
     </div>
-    <label>Target neighborhoods / ZIP codes</label><input id="location" placeholder="e.g. Cary, 27513, Apex">
+    <label>Target neighborhoods / ZIP codes / city</label><input id="location" placeholder="e.g. Cary, 27513 — or a new city like Austin, TX">
+    <div class="foot" id="citynote" aria-live="polite"></div>
     <label>Commute to</label><select id="commute_destination"><option value="">downtown Raleigh (default)</option></select>
     <label>Cities (optional)</label><div class="chips" id="cities"></div>
     <h2 style="margin-top:18px">Criteria weights</h2>
@@ -207,6 +208,16 @@ async function go(){
     $("jevchip").textContent=d.jev_enabled?("Jev: "+(d.jev_backend==="vllm"?"vLLM":d.jev_backend)):"Jev: rules fallback";
     const ls=d.listings_by_source||{}; $("srcnote").textContent="Listings: "+Object.entries(ls).map(([k,v])=>v+" "+k.replace(/_/g," ")).join(" · ")+". Payment figures are estimates, not financial advice.";}catch(e){}
   $("location").oninput=()=>{$("zlink").href="https://www.zillow.com/homes/"+encodeURIComponent($("location").value.trim().replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,""))+"_rb/";};
+  let cityTimer=null;
+  async function cityCheck(start){const q=$("location").value.trim(); if(!q){$("citynote").textContent="";return;}
+    try{let d=await fetch("api/city/status?q="+encodeURIComponent(q)).then(r=>r.json());
+      if(start&&d.status==="unknown"){await fetch("api/city/load",{method:"POST",headers:{"Content-Type":"application/json","X-Portal-Token":state.token||""},body:JSON.stringify({location:q})}); d.status="loading";}
+      const names=(d.cities||[]).map(c=>esc(c.city+(c.state?", "+c.state:""))).join(", ");
+      $("citynote").innerHTML=!d.cities||!d.cities.length?"":d.status==="ready"?`✓ public data loaded for ${names} (${(d.cities||[]).reduce((n,c)=>n+(c.areas||0),0)} areas)`
+        :d.status==="loading"?`Loading public data for ${names} (census tracts, crime, schools, flood, air quality)… usually under a minute`
+        :d.status==="failed"?`Couldn't load ${names}: ${esc((d.cities.find(c=>c.error)||{}).error||"")}`:`${names} is new — data loads when you search`;
+      clearTimeout(cityTimer); if(d.status==="loading")cityTimer=setTimeout(()=>cityCheck(false),3000);}catch(e){}}
+  $("location").onchange=()=>cityCheck(true);
   $("zfile").onchange=async ev=>{const f=ev.target.files[0]; if(!f)return; $("zout").textContent="parsing "+f.name+"…";
     try{const r=await fetch("api/listings/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:f.name,html:await f.text()})}); const d=await r.json();
       $("zout").textContent=r.ok?`${d.parsed} listings found, ${d.added} new after cleaning (${d.quality.dropped_not_for_sale} not for sale, ${d.quality.dropped_incomplete} incomplete, ${d.quality.dropped_duplicate} duplicates removed). Run the search to include them.`:(d.detail||"could not read that page");}catch(e){$("zout").textContent=String(e)}};

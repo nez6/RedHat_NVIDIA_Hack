@@ -14,3 +14,4 @@ data/intake/
 data/listings_cache/
 data/zillow/saved/*.htm*
 data/zillow/listings.json
+data/cities/

@@ -71,7 +71,7 @@ def safety(lid, p, jev=None):
 
 
 def environment(lid, p, jev=None):
-    e = live.environment(_L(lid)["neighborhood"])
+    e = live.environment(_L(lid)["neighborhood"]) or T.HOODS.get(_L(lid)["neighborhood"], {}).get("environment")
     if not e:
         return {"score": 70, "source": "baseline (no environment snapshot)"}
     return {"score": e["environment_index"], "flood_zone": e["flood"]["zone"], "sfha": e["flood"]["sfha"],
@@ -80,9 +80,9 @@ def environment(lid, p, jev=None):
 
 def urban(lid, p, jev=None):
     r = _L(lid)
-    target, (lat, lon) = T._dest(p.get("urban_target") or "downtown raleigh")
-    miles = T._miles((r["lat"], r["lon"]), (lat, lon))
     h = T.HOODS[r["neighborhood"]]
+    target, (lat, lon) = T._dest(p.get("urban_target") or "downtown raleigh", h)
+    miles = T._miles((r["lat"], r["lon"]), (lat, lon))
     walk = r.get("walk_score") or h["walk_score"]  # EPA National Walkability Index (x5) when available
     return {"score": _clamp(0.7 * (100 - miles * 3.5) + 0.3 * walk), "target": target, "miles": round(miles, 1),
             "walk_score": walk, "walk_source": r.get("walk_source") or h.get("walk_source", "sample")}
@@ -101,7 +101,8 @@ def commute(lid, p, jev=None):
 def forecast(lid, p, jev=None):
     r = _L(lid)
     a = T.affordability(lid)
-    yoy, series = live.hpi_yoy(r["city"])
+    h = T.HOODS.get(r["neighborhood"], {})
+    yoy, series = (h.get("hpi_yoy"), h.get("hpi_series")) if h.get("generated") else live.hpi_yoy(r["city"])
     yoy = yoy if yoy is not None else 3.0
     # 12-month view: 60% momentum from the metro HPI + mean reversion toward the neighborhood median price/sqft
     appreciation = 0.6 * yoy + (-a["price_vs_area_pct"]) * 0.15

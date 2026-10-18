@@ -55,6 +55,42 @@ def add_listings(rows):
 with open(os.path.join(DATA, "neighborhoods.json")) as f:
     HOODS = {h["name"]: h for h in json.load(f)}
 
+
+def register_city(doc):
+    """Add a live-looked-up city's areas (pipeline/city.py) as neighborhood profiles. Returns the area names."""
+    if not doc:
+        return []
+    with _LOCK:
+        for a in doc.get("areas") or []:
+            HOODS[a["name"]] = a
+    return [a["name"] for a in doc.get("areas") or []]
+
+
+try:  # cities looked up earlier (pipeline/ may be absent when NeMo Gym loads app/ on its own)
+    from pipeline import city as _city
+    for _doc in _city.all_cached():
+        register_city(_doc)
+except ImportError:
+    _city = None
+
+
+def ensure_cities(location, wait=True):
+    """Live city lookup for any non-Triangle city in the text. wait=False only starts the background build."""
+    if not _city or not location or os.getenv("CITY_LOOKUP", "on").lower() in ("0", "off", "false"):
+        return []
+    out = []
+    for text in _city.needs_lookup(location, known={h["city"] for h in HOODS.values()} | set(HOODS)):
+        try:
+            if wait:
+                doc = _city.ensure(text, on_ready=register_city)
+                register_city(doc)
+                out.append({"city": text, "status": "ready", "areas": len(doc["areas"]), "built_at": doc["built_at"]})
+            else:
+                out.append({"city": text, **_city.ensure_async(text, on_ready=register_city)})
+        except Exception as e:
+            out.append({"city": text, "status": "failed", "error": str(e)[:160]})
+    return out
+
 DESTINATIONS = {
     "downtown raleigh": (35.7796, -78.6382),
     "rtp": (35.8992, -78.8636),
@@ -82,8 +118,11 @@ def _miles(a, b):
     return 2 * R * math.asin(math.sqrt(h))
 
 
-def _dest(name):
+def _dest(name, hood=None):
     n = (name or "").lower().strip()
+    if hood and hood.get("generated"):  # live-looked-up city: Triangle landmarks don't apply, default to that city's center
+        if hood["city"].lower() in n or not any(k in n or n in k for k in DESTINATIONS) or n in ("", "downtown raleigh"):
+            return f"downtown {hood['city']}", tuple(hood.get("center") or (hood["lat"], hood["lon"]))
     for k, v in DESTINATIONS.items():
         if k in n or n in k:
             return k, v
@@ -204,19 +243,23 @@ def neighborhood_report(listing_id, commute_destination="downtown raleigh"):
     if not r:
         return {"error": f"listing {listing_id} not found"}
     h = HOODS[r["neighborhood"]]
-    dname, d = _dest(commute_destination)
-    gm = google_drive_minutes((r["lat"], r["lon"]), commute_destination) if commute_destination else None
-    om = ors_drive_minutes((r["lat"], r["lon"]), commute_destination) if commute_destination and gm is None else None
+    dname, d = _dest(commute_destination, h)
+    target = commute_destination
+    if h.get("generated") and dname.startswith("downtown "):
+        target = f"{dname}, {h.get('state') or ''}".strip(", ")
+        _ORS_GEO.setdefault(target.lower(), d)  # we already know the city center; skip geocoding
+    gm = google_drive_minutes((r["lat"], r["lon"]), target) if target else None
+    om = ors_drive_minutes((r["lat"], r["lon"]), target) if target and gm is None else None
     if gm is not None:
         minutes, dname, src = gm, commute_destination, "google_maps_distance_matrix"
     elif om is not None:
-        minutes, dname, src = om, commute_destination, "openrouteservice"
+        minutes, dname, src = om, target, "openrouteservice"
     else:
         minutes, src = round(6 + _miles((r["lat"], r["lon"]), d) * 1.9), "estimate"  # rough Triangle drive time incl. traffic
     lv = live.safety(h["name"])
     return {"listing_id": r["id"], "neighborhood": h["name"],
             "safety_index": lv["safety_index"] if lv else h["safety_index"],
-            "safety_source": f"{lv['source']} ({lv['scope']}, {lv['incidents']} incidents)" if lv else "baseline",
+            "safety_source": f"{lv['source']} ({lv['scope']}, {lv['incidents']} incidents)" if lv else h.get("safety_source", "baseline"),
             "school_rating": r.get("school_rating") or h["school_rating"], "walk_score": r.get("walk_score") or h["walk_score"],
             "commute_to": dname, "commute_minutes": minutes, "commute_source": src}
 
@@ -228,6 +271,9 @@ def find_listings(location=None, max_price=None, min_beds=None, min_baths=None, 
     from pipeline import listings as PL
     from pipeline.sources import rentcast, zillow
     feed = {"zillow_search_url": zillow.search_url(location) if location else None, "live_feed": "not configured"}
+    cities = ensure_cities(location)
+    if cities:
+        feed["city_lookup"] = cities
     if location and (live_fetch or rentcast.configured()):
         try:
             recs, meta = (live_fetch or rentcast.fetch)(location)
@@ -240,6 +286,12 @@ def find_listings(location=None, max_price=None, min_beds=None, min_baths=None, 
               must_have_features=must_have_features, limit=limit)
     found = search_listings(location=location, **kw)
     feed["matched_area"] = bool(found) or not location
+    if location and not found and cities:  # a new city with neighborhood data but no homes imported yet: say so, don't show Raleigh
+        feed["widened"] = False
+        feed["note"] = ("public data for " + ", ".join(c["city"] for c in cities) + " is loaded; add listings for it (Redfin CSV / Zillow page "
+                        "import, or a RENTCAST_API_KEY) to score homes there")
+        feed["sources"] = []
+        return {"listings": [], **feed}
     if location and len(found) < 4:  # widen to the whole Triangle rather than return nothing
         seen = {r["id"] for r in found}
         found += [r for r in search_listings(**kw) if r["id"] not in seen][: max(0, limit - len(found))]
