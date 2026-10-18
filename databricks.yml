@@ -1,0 +1,56 @@
+# Databricks Asset Bundle: EstatePulse ELT (bronze -> silver -> gold) on serverless compute.
+#   databricks bundle validate
+#   databricks bundle deploy            # uploads code + creates the job
+#   databricks bundle run estatepulse_elt
+bundle:
+  name: estatepulse
+
+variables:
+  catalog:
+    description: Unity Catalog catalog to write the medallion schemas into
+    default: workspace
+
+sync:
+  include:
+    - app/**
+    - pipeline/**
+    - data/**
+    - databricks/**
+  exclude:
+    - env/**
+    - results/**
+    - "**/__pycache__/**"
+
+resources:
+  jobs:
+    estatepulse_elt:
+      name: estatepulse-elt
+      description: EstatePulse AI medallion ELT - bronze (raw) -> silver (per-factor calculations) -> gold (Jev-ready)
+      schedule:
+        quartz_cron_expression: "0 17 6 * * ?"   # daily 06:17
+        timezone_id: America/New_York
+        pause_status: UNPAUSED
+      tags:
+        project: estatepulse
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: bundle_root
+          default: ${workspace.file_path}
+      tasks:
+        - task_key: bronze
+          notebook_task:
+            notebook_path: ./databricks/01_bronze_ingest.py
+        - task_key: silver
+          depends_on: [{task_key: bronze}]
+          notebook_task:
+            notebook_path: ./databricks/02_silver_factors.py
+        - task_key: gold
+          depends_on: [{task_key: silver}]
+          notebook_task:
+            notebook_path: ./databricks/03_gold_jev_ready.py
+
+targets:
+  dev:
+    mode: development
+    default: true

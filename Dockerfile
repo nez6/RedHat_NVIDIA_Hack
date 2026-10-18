@@ -33,4 +33,5 @@ USER root
 COPY requirements-dev.txt pyproject.toml ./
 COPY tests/ tests/
 COPY resources_servers/ resources_servers/
+COPY databricks/ databricks/
 RUN pip install -r requirements-dev.txt && ruff check app pipeline tests && pytest -q

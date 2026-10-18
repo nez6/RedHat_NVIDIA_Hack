@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free Home Value Calculator · EstatePulse AI</title>
+<link rel="stylesheet" href="static/site.css">
+<style>
+.layout{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+@media (max-width:620px){.kpis{grid-template-columns:1fr}}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi .l{font-size:12px;color:var(--muted)} .kpi .v{font-size:20px;font-weight:700;margin-top:2px}
+table.adj{width:100%;border-collapse:collapse;font-size:13px} table.adj td{padding:7px 4px;border-top:1px solid var(--line)}
+table.adj td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+.empty{color:var(--muted);padding:30px;text-align:center}
+</style>
+</head>
+<body>
+<script src="static/nav.js"></script>
+<div class="wrap">
+  <h1>Free home value calculator</h1>
+  <p class="lede">Estimate what a home in the NC Triangle is worth, what it would cost per month at today's live mortgage rate, and how it scores on all 10 EstatePulse factors. Every number shows its math.</p>
+  <div class="layout">
+    <form class="card" id="f" autocomplete="off">
+      <h2>The home</h2>
+      <label for="neighborhood">Neighborhood</label><select id="neighborhood" required></select>
+      <div class="grid2">
+        <div><label for="sqft">Square feet</label><input id="sqft" type="number" min="300" max="15000" value="2100" required></div>
+        <div><label for="year_built">Year built</label><input id="year_built" type="number" min="1850" max="2030" value="2004" required></div>
+        <div><label for="beds">Bedrooms</label><input id="beds" type="number" min="0" max="12" value="4" required></div>
+        <div><label for="baths">Bathrooms</label><input id="baths" type="number" min="0" max="12" step="0.5" value="2.5"></div>
+        <div><label for="property_type">Type</label><select id="property_type"><option>Single Family</option><option>Townhouse</option><option>Condo</option></select></div>
+        <div><label for="hoa_monthly">HOA ($/mo)</label><input id="hoa_monthly" type="number" min="0" value="0"></div>
+      </div>
+      <label>Features</label><div class="chips" id="features"></div>
+      <label for="price">Asking price (optional)</label><input id="price" type="number" min="0" placeholder="compare it to our estimate">
+      <h2 style="margin-top:18px">Your finances (optional)</h2>
+      <div class="grid2">
+        <div><label for="annual_income">Household income ($/yr)</label><input id="annual_income" type="number" min="0" placeholder="e.g. 140000"></div>
+        <div><label for="down_payment_pct">Down payment %</label><input id="down_payment_pct" type="number" min="0" max="100" value="20"></div>
+      </div>
+      <label for="commute_destination">Commute to</label><select id="commute_destination"></select>
+      <button class="btn" type="submit">Calculate value</button>
+      <div class="foot">Free, no sign-up. Estimates use neighborhood median $/sqft from sample data; they are not an appraisal or financial advice.</div>
+    </form>
+
+    <section>
+      <div class="card" id="out"><div class="empty">Fill in the home details and press <b>Calculate value</b>.</div></div>
+    </section>
+  </div>
+</div>
+<script>
+function $(id) { return document.getElementById(id); }
+function money(n) { return n == null ? "—" : "$" + Math.round(n).toLocaleString(); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
+function heat(v) { return v >= 85 ? "var(--h4)" : v >= 70 ? "var(--h3)" : v >= 55 ? "var(--h2)" : v >= 40 ? "var(--h1)" : "var(--h0)"; }
+
+function factorsHTML(factors) {
+  return factors.map(function (f) {
+    var inputs = Object.keys(f.inputs).map(function (k) {
+      var v = f.inputs[k]; if (typeof v === "object" && v !== null) v = JSON.stringify(v);
+      return "<span>" + esc(k) + ": " + esc(v) + "</span>";
+    }).join("");
+    return "<div class='factor'><div><b>" + esc(f.label) + "</b></div><div class='score' style='background:" + heat(f.score) + ";color:" + (f.score >= 70 ? "#0d1a00" : "inherit") + "'>" + f.score + "</div>" +
+      "<div class='detail'><div class='formula'>" + esc(f.formula) + "</div><div class='inputs'>" + inputs + "</div></div></div>";
+  }).join("");
+}
+
+function render(d) {
+  var v = d.valuation, fin = d.finance;
+  var adj = v.adjustments.map(function (a) {
+    return "<tr><td>" + esc(a.name) + "<div class='muted' style='font-size:12px'>" + esc(a.why) + "</div></td><td class='n'>" + (a.pct > 0 ? "+" : "") + a.pct + "%</td></tr>";
+  }).join("");
+  var ask = v.asking_vs_estimate_pct == null ? "" :
+    "<div class='kpi'><div class='l'>Asking price vs estimate</div><div class='v " + (v.asking_vs_estimate_pct > 3 ? "warn" : "") + "'>" + (v.asking_vs_estimate_pct > 0 ? "+" : "") + v.asking_vs_estimate_pct + "%</div><div class='muted'>" + esc(v.asking_verdict) + "</div></div>";
+  $("out").innerHTML =
+    "<h2>Estimated value</h2><div class='big'>" + money(v.estimated_value) + "</div>" +
+    "<div class='muted' style='margin-bottom:16px'>Likely range " + money(v.low) + " – " + money(v.high) + "</div>" +
+    "<div class='kpis'>" +
+      "<div class='kpi'><div class='l'>Monthly cost (PITI + HOA)</div><div class='v'>" + money(fin.monthly_total) + "</div><div class='muted'>at " + fin.rate_pct + "% · " + esc(fin.rate_source || "") + (fin.rate_as_of ? " " + fin.rate_as_of : "") + "</div></div>" +
+      "<div class='kpi'><div class='l'>12-month outlook</div><div class='v'>" + money(v.forecast_12m) + "</div><div class='muted'>metro house prices " + (v.hpi_yoy_pct > 0 ? "+" : "") + v.hpi_yoy_pct + "% YoY (FRED)</div></div>" +
+      (ask || "<div class='kpi'><div class='l'>Housing ratio</div><div class='v'>" + (fin.housing_ratio_pct != null ? fin.housing_ratio_pct + "%" : "—") + "</div><div class='muted'>of gross income (28% is healthy)</div></div>") +
+    "</div>" +
+    "<h2>How we got the estimate</h2>" +
+    "<table class='adj'><tr><td>Base: " + v.sqft.toLocaleString() + " sqft × neighborhood median " + money(v.median_ppsf) + "/sqft</td><td class='n'>" + money(v.base_value) + "</td></tr>" + adj +
+    "<tr><td><b>Total adjustment</b></td><td class='n'><b>" + (v.total_adjustment_pct > 0 ? "+" : "") + v.total_adjustment_pct + "%</b></td></tr></table>" +
+    "<div class='foot'>" + esc(v.method) + ".</div>" +
+    "<h2 style='margin-top:22px'>How it scores on the 10 factors</h2>" + factorsHTML(d.factors) +
+    "<div class='foot'>Scores use the same formulas as the agent crew and the Databricks silver layer. <a href='how'>See how each one works →</a></div>";
+}
+
+$("f").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var body = {neighborhood: $("neighborhood").value, property_type: $("property_type").value, commute_destination: $("commute_destination").value,
+              features: [].map.call(document.querySelectorAll("#features .chip.on"), function (c) { return c.textContent; })};
+  ["sqft", "year_built", "beds", "hoa_monthly"].forEach(function (k) { body[k] = parseInt($(k).value, 10); });
+  body.baths = parseFloat($("baths").value || "2"); body.down_payment_pct = parseFloat($("down_payment_pct").value || "20");
+  if ($("price").value) body.price = parseInt($("price").value, 10);
+  if ($("annual_income").value) body.annual_income = parseInt($("annual_income").value, 10);
+  $("out").innerHTML = "<div class='empty'>Calculating…</div>";
+  fetch("api/value", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)})
+    .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.detail || r.status); return j; }); })
+    .then(render)
+    .catch(function (err) { $("out").innerHTML = "<div class='empty warn'>Could not calculate: " + esc(err.message) + "</div>"; });
+});
+
+fetch("api/meta").then(function (r) { return r.json(); }).then(function (m) {
+  $("neighborhood").innerHTML = m.neighborhoods.map(function (h) { return "<option value='" + esc(h.name) + "'>" + esc(h.name) + " · " + esc(h.city) + "</option>"; }).join("");
+  $("commute_destination").innerHTML = m.destinations.map(function (d) { return "<option>" + esc(d) + "</option>"; }).join("");
+  $("features").innerHTML = m.features.map(function (f) { return "<span class='chip'>" + esc(f) + "</span>"; }).join("");
+  document.querySelectorAll("#features .chip").forEach(function (c) { c.onclick = function () { c.classList.toggle("on"); }; });
+});
+</script>
+</body>
+</html>

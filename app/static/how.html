@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How We Score · EstatePulse AI</title>
+<link rel="stylesheet" href="static/site.css">
+<style>
+.layout{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media (max-width:760px){.steps{grid-template-columns:1fr 1fr}}
+.step{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+.step b{display:block;margin-bottom:4px}
+.src{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.src:first-child{border-top:0}
+.total{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<script src="static/nav.js"></script>
+<div class="wrap">
+  <h1>How we score a home</h1>
+  <p class="lede">Ten specialist agents each own one factor. The agents gather evidence with tools, but every score is a fixed, published formula, so the same home always gets the same number. Pick a listing to see each calculation with its real inputs.</p>
+
+  <div class="steps">
+    <div class="step"><b>1 · Bronze</b><span class="muted">Raw data: FRED rates, Raleigh &amp; Cary police, FEMA flood zones, Open-Meteo, listings.</span></div>
+    <div class="step"><b>2 · Silver</b><span class="muted">Each of the 10 factor calculations per home, with inputs and formula.</span></div>
+    <div class="step"><b>3 · Gold</b><span class="muted">One Jev-ready row per home: scores, live-rate math, safety context.</span></div>
+    <div class="step"><b>4 · Decide</b><span class="muted">Your weights rank homes; Jev adds safety, fit and a verdict; Nemotron explains.</span></div>
+  </div>
+
+  <div class="layout">
+    <aside class="card">
+      <h2>Listing</h2>
+      <label for="pick">Choose a home</label><select id="pick"></select>
+      <h2 style="margin-top:18px">Buyer assumptions</h2>
+      <div class="grid2">
+        <div><label for="max_price">Budget</label><input id="max_price" type="number" value="550000"></div>
+        <div><label for="annual_income">Income</label><input id="annual_income" type="number" value="165000"></div>
+        <div><label for="min_beds">Min beds</label><input id="min_beds" type="number" value="3"></div>
+        <div><label for="commute_destination">Commute to</label><select id="commute_destination"></select></div>
+      </div>
+      <h2 style="margin-top:18px">Data freshness</h2>
+      <div id="sources" class="muted">…</div>
+    </aside>
+    <section class="card">
+      <div class="total"><div class="big" id="composite">–</div><div class="muted">composite with default weights</div></div>
+      <div class="muted" id="facts" style="margin-bottom:14px"></div>
+      <div id="factors"></div>
+    </section>
+  </div>
+</div>
+<script>
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
+function heat(v) { return v >= 85 ? "var(--h4)" : v >= 70 ? "var(--h3)" : v >= 55 ? "var(--h2)" : v >= 40 ? "var(--h1)" : "var(--h0)"; }
+
+function load() {
+  var q = ["max_price", "annual_income", "min_beds"].map(function (k) { return k + "=" + encodeURIComponent($(k).value); }).join("&") +
+          "&commute_destination=" + encodeURIComponent($("commute_destination").value);
+  history.replaceState(null, "", "?id=" + $("pick").value);
+  fetch("api/explain/" + $("pick").value + "?" + q).then(function (r) { return r.json(); }).then(function (d) {
+    var L = d.listing;
+    $("composite").textContent = d.composite;
+    $("facts").textContent = L.address + ", " + L.neighborhood + " · $" + L.price.toLocaleString() + " · " + L.beds + " bd / " + L.baths + " ba · " + L.sqft.toLocaleString() + " sqft · built " + L.year_built + (L.hoa_monthly ? " · HOA $" + L.hoa_monthly + "/mo" : "");
+    $("factors").innerHTML = d.factors.map(function (f) {
+      var inputs = Object.keys(f.inputs).map(function (k) {
+        var v = f.inputs[k]; if (typeof v === "object" && v !== null) v = JSON.stringify(v);
+        return "<span>" + esc(k) + ": " + esc(v) + "</span>";
+      }).join("");
+      return "<div class='factor'><div><b>" + esc(f.label) + "</b><div class='muted' style='font-size:12px'>weight " + d.weights[f.factor] + "</div></div>" +
+        "<div class='score' style='background:" + heat(f.score) + ";color:" + (f.score >= 70 ? "#0d1a00" : "inherit") + "'>" + f.score + "</div>" +
+        "<div class='detail'><div class='formula'>" + esc(f.formula) + "</div><div class='inputs'>" + inputs + "</div></div></div>";
+    }).join("");
+    var s = d.data.sources || {};
+    var rows = [["30-yr mortgage rate", d.data.mortgage_30y + "% · " + (d.data.mortgage_source.as_of || "default")],
+                ["Police data", (s.police || {}).status ? s.police.status + " · " + (s.police.raleigh_records || 0) + " Raleigh incidents" : "baseline"],
+                ["Environment", d.data.live_environment_neighborhoods + " neighborhoods"],
+                ["Last refresh", d.data.run_at ? d.data.run_at.replace("T", " ").slice(0, 16) + " UTC" : "never"]];
+    $("sources").innerHTML = rows.map(function (r) { return "<div class='src'><span>" + r[0] + "</span><span class='mono'>" + esc(r[1]) + "</span></div>"; }).join("");
+  });
+}
+
+fetch("api/meta").then(function (r) { return r.json(); }).then(function (m) {
+  $("commute_destination").innerHTML = m.destinations.map(function (d) { return "<option" + (d === "rtp" ? " selected" : "") + ">" + esc(d) + "</option>"; }).join("");
+  var ids = []; for (var i = 1001; i < 1001 + m.listings; i++) ids.push(i);
+  return Promise.all(ids.map(function (id) { return id; }));
+}).then(function (ids) {
+  return fetch("api/rescore", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ids: ids, profile: {}, weights: {}})})
+    .then(function (r) { return r.json(); });
+}).then(function (rows) {
+  rows.sort(function (a, b) { return a.listing.id - b.listing.id; });
+  $("pick").innerHTML = rows.map(function (r) { var L = r.listing; return "<option value='" + L.id + "'>" + esc(L.address) + " · " + esc(L.neighborhood) + "</option>"; }).join("");
+  var want = new URLSearchParams(location.search).get("id");
+  if (want) $("pick").value = want;
+  ["pick", "max_price", "annual_income", "min_beds", "commute_destination"].forEach(function (k) { $(k).addEventListener("change", load); });
+  load();
+});
+</script>
+</body>
+</html>

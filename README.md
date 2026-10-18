@@ -271,3 +271,34 @@ docker compose run --rm pipeline                        # refresh live data (+ D
 ```
 
 Secrets (`TYPESAFE_API_KEY`, `DATABRICKS_*`, `HF_TOKEN`) are read from your shell or a local `.env` file, which is git- and docker-ignored.
+
+
+## 🧱 Databricks ELT (bronze → silver → gold)
+
+Deployed as a **Databricks Asset Bundle** (`databricks.yml`) that creates a 3-task serverless job, `estatepulse-elt`, scheduled daily. The job reuses the repo's own Python, so the Databricks tables and the app compute identical numbers. The logic lives in `pipeline/medallion.py` and is unit-tested in CI.
+
+| Layer | Schema `workspace.estatepulse_*` | What's in it |
+|---|---|---|
+| **Bronze** (raw) | `fred_observations`, `police_incidents`, `cary_offense_counts`, `environment_raw`, `neighborhoods_raw`, `listings_raw` | Data exactly as received, stamped with `run_id`, `ingested_at` and `source_mode` (`live_api` / `snapshot` / `unavailable`) |
+| **Silver** (calculations) | `listing_factors` + one view per factor (`factor_lifestyle` … `factor_maintenance`), `neighborhood_indexes` | One row per listing × factor: the score, the formula and the exact inputs used; neighborhood safety and environment indexes |
+| **Gold** (Jev-ready) | `jev_ready_listings`, `pipeline_audit` | One row per listing: 10 scores, composite and rank, live-rate math, and the exact Jev `state` + `questions` payload |
+
+Governance: table comments, tags (`layer`, `pii=none`, `consumer=jev`), a `CHECK (score BETWEEN 0 AND 100)` constraint, an audit table, and automatic Unity Catalog lineage between the layers.
+
+Deploy once from the Brev terminal (create a personal access token in Databricks under **Settings → Developer → Access tokens**, and paste it only into your own terminal):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh   # Databricks CLI
+export DATABRICKS_HOST=https://dbc-421bb698-9803.cloud.databricks.com
+export DATABRICKS_TOKEN=<your token>
+databricks bundle validate && databricks bundle deploy && databricks bundle run estatepulse_elt
+```
+
+## 🖥 Pages
+
+| Page | Path | What it does |
+|---|---|---|
+| Find a home | `/` | Describe your dream home; 14 Nemotron agents build the decision matrix live. Every home links to its math. |
+| Free value calculator | `/value` | Estimate a home's value (range + 12-month outlook), monthly cost at the live FRED rate, the asking-price check, and all 10 factor scores. No sign-up. |
+| How we score | `/how` | Pick any listing and see each factor's formula, inputs and score, plus data freshness and the bronze → silver → gold flow. |
+| Architecture | `/architecture` | Judging dashboard: live system status, weights, failure injection, NeMo Gym results, judging criteria. |

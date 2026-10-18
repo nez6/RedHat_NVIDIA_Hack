@@ -70,3 +70,29 @@ def test_match_stream_reports_all_ten_metric_agents():
 def test_gym_summary_endpoint_never_fails():
     d = client.get("/api/gym").json()
     assert "agents" in d
+
+
+def test_pages_are_served():
+    for path, marker in (("/value", "Free home value calculator"), ("/how", "How we score a home"), ("/static/nav.js", "Free value calculator")):
+        r = client.get(path)
+        assert r.status_code == 200 and marker in r.text, path
+
+
+def test_explain_shows_every_factor_with_formula_and_inputs():
+    d = client.get("/api/explain/1001?max_price=500000").json()
+    assert [f["factor"] for f in d["factors"]] == m_criteria()
+    assert all(f["formula"] and isinstance(f["inputs"], dict) for f in d["factors"])
+    assert client.get("/api/explain/999999").status_code == 404
+
+
+def test_value_calculator_scores_an_unlisted_home_without_leaking_it():
+    from app import tools as T
+    before = set(T.BY_ID)
+    body = {"neighborhood": "Oakwood", "sqft": 2000, "beds": 3, "year_built": 2010, "price": 600000, "annual_income": 150000,
+            "features": ["garage", "pool"]}
+    d = client.post("/api/value", json=body).json()
+    assert d["valuation"]["estimated_value"] > 0 and d["valuation"]["asking_verdict"]
+    assert len(d["factors"]) == 10 and d["finance"]["rate_pct"] == 7.4
+    assert set(T.BY_ID) == before
+    assert client.post("/api/value", json={**body, "neighborhood": "Atlantis"}).status_code == 400
+    assert client.post("/api/value", json={**body, "sqft": 5}).status_code == 400

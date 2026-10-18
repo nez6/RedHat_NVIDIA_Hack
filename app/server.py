@@ -2,12 +2,13 @@
 
 Run:  uvicorn app.server:app --host 0.0.0.0 --port 8501
 """
-import json, os, queue, re, threading, time
-from fastapi import FastAPI
+import itertools, json, os, queue, re, threading, time
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agents, jev as J, live, metric_agents as MA, tools as T
+from . import agents, jev as J, live, metric_agents as MA, metrics as M, tools as T, valuation
 from pipeline import http as pipeline_http
 
 app = FastAPI(title="DreamHome AI (Nemotron)")
@@ -19,9 +20,83 @@ class MatchRequest(BaseModel):
     form: dict = {}
 
 
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
 @app.get("/")
 def index():
     return FileResponse(os.path.join(STATIC, "index.html"))
+
+
+@app.get("/value")
+def value_page():
+    return FileResponse(os.path.join(STATIC, "value.html"))
+
+
+@app.get("/how")
+def how_page():
+    return FileResponse(os.path.join(STATIC, "how.html"))
+
+
+@app.get("/api/explain/{listing_id}")
+def explain(listing_id: int, max_price: int = 550000, annual_income: int = 165000, min_beds: int = 3,
+            commute_destination: str = "rtp"):
+    """Every factor calculation for one listing: score, formula and inputs."""
+    if listing_id not in T.BY_ID:
+        raise HTTPException(404, "unknown listing")
+    profile = {"max_price": max_price, "annual_income": annual_income, "min_beds": min_beds,
+               "commute_destination": commute_destination}
+    rows = M.explain(listing_id, profile)
+    total = round(sum(r["score"] * M.DEFAULT_WEIGHTS[r["factor"]] for r in rows) / sum(M.DEFAULT_WEIGHTS.values()), 1)
+    return {"listing": T.BY_ID[listing_id], "profile": profile, "factors": rows, "weights": M.DEFAULT_WEIGHTS,
+            "composite": total, "data": live.status()}
+
+
+_adhoc_ids = itertools.count(1)
+_adhoc_lock = threading.Lock()
+
+
+class ValueRequest(BaseModel):
+    neighborhood: str
+    sqft: int
+    beds: int = 3
+    baths: float = 2
+    year_built: int = 2000
+    hoa_monthly: int = 0
+    property_type: str = "Single Family"
+    features: list[str] = []
+    price: int | None = None
+    annual_income: int | None = None
+    down_payment_pct: float = 20
+    commute_destination: str = "downtown raleigh"
+
+
+@app.post("/api/value")
+def value(req: ValueRequest):
+    """Free value calculator: estimate + 12-month outlook + the same 10 factor calculations as listed homes."""
+    hood = T.HOODS.get(req.neighborhood)
+    if not hood:
+        raise HTTPException(400, f"unknown neighborhood; choose one of {sorted(T.HOODS)}")
+    if not (300 <= req.sqft <= 15000 and 0 <= req.beds <= 12 and 1850 <= req.year_built <= 2030):
+        raise HTTPException(400, "sqft, beds or year_built out of range")
+    yoy, _ = live.hpi_yoy(hood["city"])
+    home = req.model_dump()
+    est = valuation.estimate(home, hood, yoy)
+    price = req.price or est["estimated_value"]
+    with _adhoc_lock:  # score the home with the same metric code by registering a temporary listing id
+        lid = -next(_adhoc_ids)
+        T.BY_ID[lid] = {"id": lid, "address": "Your home", "neighborhood": req.neighborhood, "city": hood["city"],
+                        "lat": hood["lat"], "lon": hood["lon"], "price": int(price), "beds": req.beds, "baths": req.baths,
+                        "sqft": req.sqft, "year_built": req.year_built, "lot_acres": 0.0, "hoa_monthly": req.hoa_monthly,
+                        "property_type": req.property_type, "features": req.features, "days_on_market": 0}
+        try:
+            profile = {"max_price": int(price), "annual_income": req.annual_income, "down_payment_pct": req.down_payment_pct,
+                       "min_beds": req.beds, "commute_destination": req.commute_destination}
+            factors = M.explain(lid, profile)
+            finance = T.affordability(lid, req.annual_income, req.down_payment_pct)
+        finally:
+            T.BY_ID.pop(lid, None)
+    return {"valuation": est, "finance": finance, "factors": factors}
 
 
 @app.get("/architecture")
@@ -106,6 +181,7 @@ def gym_summary():
 @app.get("/api/meta")
 def meta():
     return {"cities": T.CITIES, "features": T.FEATURES, "destinations": sorted(T.DESTINATIONS),
+            "neighborhoods": [{"name": h["name"], "city": h["city"]} for h in T.HOODS.values()],
             "criteria": T.CRITERIA, "listings": len(T.LISTINGS)}
 
 

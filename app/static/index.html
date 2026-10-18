@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DreamHome AI</title>
+<title>Find a Home · EstatePulse AI</title>
+<link rel="stylesheet" href="static/site.css">
 <style>
 :root{
   --bg:#f6f5f1; --panel:#ffffff; --ink:#1d1f1c; --muted:#6b6f68; --line:#e4e2db;
@@ -75,12 +76,16 @@ th.rank1{box-shadow:inset 0 3px 0 var(--accent)}
 .home .p{font-size:18px;font-weight:700} .home .meta{color:var(--muted);font-size:12px}
 .home .f{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px} .home .f span{font-size:11px;background:var(--chip);padding:2px 7px;border-radius:99px}
 .stack{display:grid;gap:16px}
+.home a.math{display:inline-block;margin-top:8px;font-size:12px;color:var(--accent-ink);text-decoration:none}
+.home a.math:hover{text-decoration:underline}
+header{position:static}
 #log{font:11.5px/1.5 var(--mono);max-height:260px;overflow:auto;background:var(--bg);border-radius:8px;padding:10px;border:1px solid var(--line)}
 #log .a{color:var(--accent-ink);font-weight:600} #log .fb{color:var(--warn)}
 .foot{color:var(--muted);font-size:11.5px;margin-top:8px}
 </style>
 </head>
 <body>
+<script src="static/nav.js"></script>
 <header>
   <h1>DreamHome AI</h1><span class="tag">a crew of Nemotron agents that finds your home in the NC Triangle</span>
   <div class="chips-h"><span id="rate">FRED rate …</span><span id="police">police data …</span><span id="jevchip">Jev …</span><span id="health">checking Nemotron…</span></div>
@@ -141,7 +146,7 @@ function matrixUI(rows){
   }
   h+=`<tr class="total"><th>Fit score</th>`+top.map(r=>`<td>${r.total}</td>`).join("")+"</tr></tbody></table>";
   $("matrix").innerHTML=h;
-  $("homes").innerHTML=rows.slice(0,9).map((r,i)=>{const L=r.listing,N=r.neighborhood,F=r.finance;return `<div class="home"><div class="meta">#${i+1} · fit ${r.total}</div><div class="p">${fmt(L.price)}</div><div>${L.address}, ${L.city}</div><div class="meta">${L.beds} bd · ${L.baths} ba · ${L.sqft.toLocaleString()} sqft · ${L.property_type}</div><div class="meta">≈ ${fmt(F.monthly_total)}/mo @ ${F.rate_pct}%${F.housing_ratio_pct?` (${F.housing_ratio_pct}% of income)`:""} · ${N.commute_minutes} min to ${N.commute_to}</div><div class="f">${L.features.slice(0,5).map(f=>`<span>${f}</span>`).join("")}</div></div>`}).join("");
+  $("homes").innerHTML=rows.slice(0,9).map((r,i)=>{const L=r.listing,N=r.neighborhood,F=r.finance;return `<div class="home"><div class="meta">#${i+1} · fit ${r.total}</div><div class="p">${fmt(L.price)}</div><div>${L.address}, ${L.city}</div><div class="meta">${L.beds} bd · ${L.baths} ba · ${L.sqft.toLocaleString()} sqft · ${L.property_type}</div><div class="meta">≈ ${fmt(F.monthly_total)}/mo @ ${F.rate_pct}%${F.housing_ratio_pct?` (${F.housing_ratio_pct}% of income)`:""} · ${N.commute_minutes} min to ${N.commute_to}</div><div class="f">${L.features.slice(0,5).map(f=>`<span>${f}</span>`).join("")}</div><a class="math" href="how?id=${L.id}">See the math →</a></div>`}).join("");
 }
 let rsT; function rescore(){ if(!state.ids.length)return; clearTimeout(rsT); rsT=setTimeout(async()=>{
   const r=await fetch("api/rescore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:state.ids,profile:state.profile||{},weights:state.weights,jev:state.jev})}).then(r=>r.json()); matrixUI(r);},120);}
