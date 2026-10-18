@@ -16,9 +16,13 @@ Choose the account type on the sign-in page, then use:
 
 | Sign in as | Email | Password | What you'll see |
 |---|---|---|---|
-| **Admin (tester)**: start here | `admin@estatepulse.demo` | `Judge-Admin-7584dd` | Everything: **Find a home** (the 6 agents live), **Data flow**, **Agent test lab**, **Architecture**, and the realtor and client views |
-| Realtor workspace | `realtor@estatepulse.demo` | `Judge-Realtor-79b586` | The realtor's 12-step workspace, client intakes, and the decision matrix |
+
+| Realtor workspace | `realtor@estatepulse.demo` | `Judge-Realtor-79b586` | The realtor's 12-step workspace, client intakes, and the decision matrix ---- working demo enviornment
+
+Future Configurations
+
 | Client | `client@estatepulse.demo` | `Judge-Client-6bd300` | A buyer's portal with their questionnaire and matched homes |
+| **Admin (tester)**: start here | `admin@estatepulse.demo` | `Judge-Admin-7584dd` | Everything: **Find a home** (the 6 agents live), **Data flow**, **Agent test lab**, **Architecture**, and the realtor and client views |
 
 **A 3-minute tour:**
 1. Sign in as Admin and open **Find a home**. Type "3 bed 2 bath under $500k in Raleigh, commute to downtown Raleigh under 25 minutes" and watch the 6 agents call their tools, then Jev's verdicts, then the ranked homes.
