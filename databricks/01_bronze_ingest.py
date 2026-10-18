@@ -21,6 +21,13 @@ RUN_ID = medallion.new_run_id()
 dbutils.jobs.taskValues.set("run_id", RUN_ID)
 for layer in ("bronze", "silver", "gold"):
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{CATALOG}`.`estatepulse_{layer}` COMMENT 'EstatePulse AI {layer} layer'")
+# restricted client intake table (the app inserts one row per questionnaire; documents live in the client_documents volume)
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{CATALOG}`.`estatepulse_secure` COMMENT 'Client intake - restricted to advisors'")
+spark.sql(f"""CREATE TABLE IF NOT EXISTS `{CATALOG}`.`estatepulse_secure`.`client_intake` (
+  intake_id STRING NOT NULL, created_at TIMESTAMP, client_name STRING, client_email STRING, financing STRING,
+  max_price INT, document_path STRING COMMENT 'path in the client_documents volume; contents never copied into tables',
+  profile_json STRING, status STRING) COMMENT 'Home Match Toolkit submissions. PII: contact details + financing status.'""")
+spark.sql(f"ALTER TABLE `{CATALOG}`.`estatepulse_secure`.`client_intake` SET TAGS ('pii' = 'client_contact', 'project' = 'estatepulse')")
 
 # COMMAND ----------
 tables, log = medallion.bronze(fred.fetch_all, police.fetch_raleigh, police.fetch_cary, environment.fetch_neighborhood,
@@ -33,7 +40,7 @@ COMMENTS = {
     "cary_offense_counts": "Cary PD offense counts over the last 12 months (server-side aggregate).",
     "environment_raw": "Raw FEMA NFHL flood zone + Open-Meteo AQI and weather extremes per neighborhood centroid (JSON).",
     "neighborhoods_raw": "Neighborhood reference data (centroid, school rating, walk score, baseline safety).",
-    "listings_raw": "Listings as ingested. Current source: synthetic sample data.",
+    "listings_raw": "Listings as ingested: Zillow saved-page parser + live feed output (source_mode zillow_saved_page / zillow_upload / rentcast_api) and the synthetic sample.",
 }
 for name, rows in tables.items():
     if not rows:

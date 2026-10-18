@@ -17,8 +17,8 @@ from core import load  # noqa: E402
 M, T = load()
 from dreamhome_app import metric_agents as MA  # noqa: E402
 
-EVAL_METRICS = [a.key for a in MA.AGENTS if a.gym_mode == "eval"]
-RL_METRICS = [a.key for a in MA.AGENTS if a.gym_mode == "eval+rl"]
+EVAL_METRICS = [a.key for a in MA.SPECS if a.gym_mode == "eval"]
+RL_METRICS = [a.key for a in MA.SPECS if a.gym_mode == "eval+rl"]
 BUYERS = [
     {"summary": "family of four, needs schools and a yard", "max_price": 550000, "annual_income": 165000, "min_beds": 3,
      "must_have_features": ["fenced yard", "home office"], "commute_destination": "rtp", "urban_target": "cary"},
@@ -47,7 +47,7 @@ def main(seed=7, per_metric=8, rl_tasks=24):
     ids_all = [r["id"] for r in T.LISTINGS]
     evals, rls = [], []
     for metric in EVAL_METRICS:
-        agent = MA.BY_KEY[metric]
+        agent = MA.SPEC_BY_KEY[metric]
         for i in range(per_metric):
             buyer = BUYERS[i % len(BUYERS)]
             ids = rng.sample(ids_all, 4)
@@ -57,7 +57,7 @@ def main(seed=7, per_metric=8, rl_tasks=24):
                     f"End with 'ANSWER: <listing_id>' for the best listing on this metric.")
             evals.append(row(agent.system_prompt, user, [tool_spec(metric)],
                              {"task_type": "eval", "metric": metric, "listing_ids": ids, "best_id": best, "expected": sc}))
-    deal_agent, fc_agent = MA.BY_KEY["deal"], MA.BY_KEY["forecast"]
+    deal_agent, fc_agent = MA.SPEC_BY_KEY["deal"], MA.SPEC_BY_KEY["forecast"]
     for i in range(rl_tasks):
         buyer = BUYERS[i % len(BUYERS)]
         if i % 2 == 0:

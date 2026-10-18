@@ -10,3 +10,7 @@ match.ndjson
 untitled.py
 .env
 _*.txt
+data/intake/
+data/listings_cache/
+data/zillow/saved/*.htm*
+data/zillow/listings.json

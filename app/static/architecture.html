@@ -28,6 +28,22 @@ body{background:var(--bg-dark);color:var(--text-main);font-family:'Segoe UI',sys
 .sub{padding:8px;border:1px solid var(--border-color);border-radius:6px}
 .sub small{display:block;color:var(--text-muted)}
 @media (max-width:767px){.arrow{display:none!important}}
+.ingest{background:#0f172a;border:1px solid #f59e0b;border-radius:8px;padding:16px}
+.tree{list-style:none;padding-left:0;margin:0;font-size:.9rem}.tree ul{list-style:none;padding-left:18px;margin:2px 0}.tree li{margin:4px 0}
+.tree li::before{content:"› ";color:#f59e0b}
+.flow{display:grid;gap:10px}
+.tagline{font-size:.85rem;color:var(--text-muted)}
+.pill{display:inline-block;padding:2px 10px;border:1px solid var(--border-color);border-radius:6px;background:#0b1220;color:#e2e8f0;font-size:.8rem;margin-right:6px}
+.agents6{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:767px){.agents6{grid-template-columns:1fr}}
+.agents6 .a{border:1px solid var(--border-color);border-radius:8px;padding:8px;font-size:.8rem;background:#0b1220}
+.agents6 .a b{display:block;color:#f8fafc}.agents6 .a span{color:var(--text-muted)}
+.down{text-align:center;color:var(--text-muted);line-height:1}
+.medal{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+@media (max-width:575px){.medal{grid-template-columns:1fr}}
+.medal .tier{background:#f5b301;color:#1f1300;font-weight:700;letter-spacing:.06em;padding:8px;border-radius:4px;margin-bottom:4px}
+.medal small{color:var(--text-muted)}
+
 </style>
 </head>
 <body>
@@ -46,20 +62,65 @@ body{background:var(--bg-dark);color:var(--text-main);font-family:'Segoe UI',sys
 <div class="container-fluid px-3 px-md-4">
   <div class="card card-custom">
     <div class="card-header-custom">
-      <span><i class="fa-solid fa-diagram-project me-2 text-info"></i> End-to-End Systems Architecture</span>
-      <small class="text-muted">Track 3: Tool-Calling · Multi-Criteria Decision Engine (Jev)</small>
+      <span><i class="fa-solid fa-diagram-project me-2 text-info"></i> Our Technical System Architecture</span>
+      <small class="text-muted">Track 3: Tool-Calling · 6 Nemotron agents · Databricks ELT · JEB on vLLM</small>
     </div>
     <div class="card-body">
-      <div class="row g-3 text-center">
-        <div class="col-md"><div class="architecture-node" id="n1"><i class="fa-solid fa-spider fs-3 text-warning mb-2"></i><h6>1. Ingestion Pipeline</h6><small class="text-muted">FRED · Raleigh &amp; Cary PD · FEMA flood · Open-Meteo, validated by data contracts</small><div class="node-status" id="n1s">…</div></div></div>
-        <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
-        <div class="col-md"><div class="architecture-node" id="n2"><i class="fa-solid fa-database fs-3 text-primary mb-2"></i><h6>2. Databricks Unity Catalog</h6><small class="text-muted">Bronze → silver → gold · tags · CHECK constraints · lineage · audit tables</small><div class="node-status" id="n2s">…</div></div></div>
-        <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
-        <div class="col-md"><div class="architecture-node active" id="n3"><i class="fa-solid fa-calculator fs-3 text-success mb-2"></i><h6>3. Jev Decision Layer</h6><small class="text-muted">Deterministic 10-criteria matrix + Jev safety / fit / verdict</small><div class="node-status" id="n3s">…</div></div></div>
-        <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
-        <div class="col-md"><div class="architecture-node" id="n4"><i class="fa-solid fa-robot fs-3 text-danger mb-2"></i><h6>4. vLLM · Nemotron Agents</h6><small class="text-muted">Concierge · Scout · 10 metric agents · Matchmaker</small><div class="node-status" id="n4s">…</div></div></div>
-        <div class="col-auto d-flex align-items-center arrow"><i class="fa-solid fa-chevron-right text-muted"></i></div>
-        <div class="col-md"><div class="architecture-node active" id="n5"><i class="fa-solid fa-laptop-code fs-3 text-info mb-2"></i><h6>5. Web UI</h6><small class="text-muted">FastAPI + streaming decision matrix</small><div class="node-status"><a href="./" class="link-info">open app →</a></div></div></div>
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="ingest h-100" id="n1">
+            <h6 class="mb-2"><i class="fa-solid fa-spider me-2 text-warning"></i>Data Ingestion</h6>
+            <ul class="tree">
+              <li><b>Questionnaire</b> <span class="text-muted">Home Match Toolkit → profile + weights</span></li>
+              <li><b>Web resources</b>
+                <ul>
+                  <li>FRED data <span class="text-muted">mortgage rates, house-price index</span></li>
+                  <li>Commute distance <span class="text-muted">Google Maps Distance Matrix</span></li>
+                  <li>Zillow listing data <span class="text-muted">school score, description, urban city score, room / layout score</span>
+                    <ul><li>Maintenance score</li><li>Value / deal score</li></ul></li>
+                  <li>Safety data
+                    <ul><li>Government crime data <span class="text-muted">Raleigh &amp; Cary PD</span></li><li>Weather data <span class="text-muted">FEMA flood, Open-Meteo</span></li></ul></li>
+                </ul></li>
+            </ul>
+            <div class="node-status" id="n1s">…</div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="flow">
+            <div class="architecture-node" id="n4"><h6 class="mb-1"><i class="fa-solid fa-robot me-2 text-danger"></i>vLLM · NVIDIA Nemotron 3.5 Lightning</h6>
+              <div class="node-status" id="n4s">…</div></div>
+            <div class="tagline"><span class="pill">6 Agents</span> parse data, delete duplicate / non-existent listings, and write the first files for Databricks to ingest</div>
+            <div class="agents6" id="agents6"></div>
+            <div class="down">▼</div>
+            <div class="architecture-node" id="n2"><h6 class="mb-1"><i class="fa-solid fa-database me-2 text-primary"></i>Databricks</h6>
+              <span class="pill">ELT data pipeline</span><div class="node-status" id="n2s">…</div></div>
+            <div class="medal">
+              <div><div class="tier">BRONZE</div><small>Imports dbx files and tests data</small></div>
+              <div><div class="tier">SILVER</div><small>Collects and maps data: one row per home × factor</small></div>
+              <div><div class="tier">GOLD</div><small>Calculates score values for JEB</small></div>
+            </div>
+            <div class="down">▼</div>
+            <div class="architecture-node active" id="n3"><h6 class="mb-1"><i class="fa-solid fa-calculator me-2 text-success"></i>vLLM · JEB</h6>
+              <small class="text-muted">vLLM acts as the orchestrator calling the fast quick-math model (Jev pattern, one token per question) → creates and provides the matrix of homes to purchase</small>
+              <div class="node-status" id="n3s">…</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mt-2 text-center small">
+        <div class="col-md"><div class="architecture-node"><i class="fa-brands fa-docker text-info me-1"></i><b>Docker microservices</b><div class="text-muted">containerized, deployable: app · vLLM · pipeline · invites</div></div></div>
+        <div class="col-md"><div class="architecture-node active" id="n5"><i class="fa-solid fa-palette text-warning me-1"></i><b>UI creator / designer</b><div class="text-muted">questionnaire, decision matrix, portal · <a href="./" class="link-info">open app →</a></div></div></div>
+        <div class="col-md"><div class="architecture-node"><i class="fa-solid fa-plug text-success me-1"></i><b>API integrations</b><div class="text-muted" id="apis">FRED · police · FEMA · Open-Meteo · Zillow parser · RentCast · Google Maps · Databricks</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-custom">
+    <div class="card-header-custom"><span><i class="fa-solid fa-road me-2 text-warning"></i> Data roadmap</span><small class="text-muted">how listing data scales with revenue</small></div>
+    <div class="card-body small">
+      <div class="row g-3">
+        <div class="col-md"><div class="sub h-100"><b>Now · hackathon</b><small>Zillow parser for pages buyers save from their own browser (we never crawl Zillow; its terms prohibit automated queries), plus a licensed live feed by location (RentCast free tier, MLS-sourced) and 61 sample homes as a fallback.</small></div></div>
+        <div class="col-md"><div class="sub h-100"><b>First revenue</b><small>Buy API credits from a large listing data hub for <i>all</i> open homes in our markets: MLS access through a RESO Web API / IDX feed, Zillow Bridge, or a commercial aggregator. The Zillow Listing Agent already has a provider slot for it.</small></div></div>
+        <div class="col-md"><div class="sub h-100"><b>Scale</b><small>Nightly full-market sync into Databricks bronze, price-history and days-on-market signals in silver, and county tax + permit records for the maintenance and deal scores.</small></div></div>
       </div>
     </div>
   </div>
@@ -95,7 +156,7 @@ body{background:var(--bg-dark);color:var(--text-main);font-family:'Segoe UI',sys
 
     <div class="col-lg-8">
       <div class="card card-custom">
-        <div class="card-header-custom"><span><i class="fa-solid fa-house me-2 text-danger"></i> Top Match: <span id="addr">…</span></span><span class="badge bg-warning text-dark">Sample listing · live rates &amp; safety</span></div>
+        <div class="card-header-custom"><span><i class="fa-solid fa-house me-2 text-danger"></i> Top Match: <span id="addr">…</span></span><span class="badge bg-warning text-dark">live rates &amp; safety</span></div>
         <div class="card-body">
           <div class="row align-items-center mb-4">
             <div class="col-md-3 text-center border-end border-secondary">
@@ -207,7 +268,8 @@ Promise.all([
   fetch("api/gym").then(function (r) { return r.json(); })
 ]).then(function (res) {
   var meta = res[0], ds = res[1], h = res[2], ag = res[3], gym = res[4];
-  ag.agents.forEach(function (a) { LABEL[a.key] = a.label; weights[a.key] = a.default_weight; });
+  ag.metrics.forEach(function (m) { LABEL[m.key] = m.label; weights[m.key] = m.default_weight; });
+  $("agents6").innerHTML = ag.agents.map(function (a, i) { return "<div class='a'><b>" + (i + 1) + ". " + esc(a.name) + "</b><span>" + esc(a.labels.length ? a.labels.join(" · ") : "find, parse, de-duplicate listings") + "</span></div>"; }).join("");
   var srcs = ds.sources || {};
   var okAll = (srcs.fred || {}).status === "ok" && ["ok", "partial"].indexOf((srcs.police || {}).status) >= 0;
   var gymAgents = (gym && gym.agents) || {}, gymKeys = Object.keys(gymAgents);
@@ -217,7 +279,7 @@ Promise.all([
     return "<div class='d-flex justify-content-between'><span class='text-muted'>" + (LABEL[k] || k) + " (" + g.mode + ", n=" + g.n + ")</span><span>reward " + g.mean_reward.toFixed(2) + " · pass " + Math.round(g.pass_rate * 100) + "%</span></div>"; }).join("");
   var dbx = ds.databricks_configured ? (ds.databricks_last_sync ? "synced " + ds.databricks_last_sync : "configured, not synced yet") : "set DATABRICKS_* to enable";
   var crit = [
-    ["Tool calling (Track 3)", ag.problems.length === 0, "10 metric agents + concierge + scout; registry check " + (ag.problems.length ? "FAILED" : "passes")],
+    ["Tool calling (Track 3)", ag.problems.length === 0, ag.agents.length + " Nemotron agents, each with its own tool; all 10 scores owned exactly once; registry check " + (ag.problems.length ? "FAILED" : "passes")],
     ["Nemotron on vLLM", !!h.ok, h.ok ? h.model + " served by vLLM, FP8 on L40S" : "Nemotron offline"],
     ["Data governance", okAll, "data contracts " + (okAll ? "passing" : "degraded") + " · Unity Catalog: " + dbx + " · AI decisions audited"],
     ["Design & UX", true, "decision-matrix heatmap, live agent telemetry, light/dark, mobile layout, explainable sub-scores"],
@@ -226,7 +288,9 @@ Promise.all([
   ];
   $("criteria").innerHTML = crit.map(function (c) {
     return "<div class='d-flex gap-2 mb-2'><i class='fa-solid " + (c[1] ? "fa-circle-check text-success" : "fa-circle-half-stroke text-warning") + " mt-1'></i><div><strong>" + c[0] + "</strong><div class='text-muted'>" + esc(c[2]) + "</div></div></div>"; }).join("");
-  for (var i = 1001; i < 1001 + meta.listings; i++) ids.push(i);
+  ids = meta.listing_ids || [];
+  var ls = ds.listings_by_source || {};
+  $("apis").textContent = "FRED · police · FEMA · Open-Meteo · Zillow parser (" + (ls.zillow_saved_page || 0) + " homes) · RentCast " + (ds.live_listings_feed ? "on" : "off") + " · Google Maps " + (ds.google_maps ? "on" : "off") + " · Databricks";
   $("model-badge").innerHTML = "<i class='fa-solid fa-microchip me-1'></i> " + (h.ok ? "Nemotron 3.5 Lightning (" + h.model + ")" : "Nemotron offline");
   var src = ds.sources || {}, fred = src.fred || {}, pol = src.police || {};
   $("data-badge").innerHTML = "<i class='fa-solid fa-shield-halved me-1'></i> Data contracts " + (okAll ? "passing" : "degraded");

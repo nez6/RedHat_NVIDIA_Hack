@@ -18,6 +18,12 @@ x-app-env: &app-env
   DATABRICKS_TOKEN: ${DATABRICKS_TOKEN:-}
   DATABRICKS_WAREHOUSE_ID: ${DATABRICKS_WAREHOUSE_ID:-}
   DATABRICKS_CATALOG: ${DATABRICKS_CATALOG:-workspace}
+  LISTINGS_SOURCE: ${LISTINGS_SOURCE:-both}       # zillow | sample | both
+  RENTCAST_API_KEY: ${RENTCAST_API_KEY:-}         # live for-sale listings by location (free plan: 50 requests/month)
+  GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}   # commute minutes via Distance Matrix
+  ADMIN_TOKEN: ${ADMIN_TOKEN:-}                   # advisors mark kickoff meetings done
+  PORTAL_SECRET: ${PORTAL_SECRET:-}               # signs portal sign-in links (app and invites must share it)
+  PORTAL_BASE_URL: ${PORTAL_BASE_URL:-http://localhost:8501}
 
 services:
   vllm:
@@ -65,6 +71,8 @@ services:
     volumes:
       - ./data/live:/app/data/live
       - ./results:/app/results:ro
+      - intake:/app/data/intake
+      - ./data/zillow:/app/data/zillow
     restart: unless-stopped
 
   app-hostnet:
@@ -79,6 +87,8 @@ services:
     volumes:
       - ./data/live:/app/data/live
       - ./results:/app/results:ro
+      - intake:/app/data/intake
+      - ./data/zillow:/app/data/zillow
     restart: unless-stopped
 
   pipeline:
@@ -89,3 +99,21 @@ services:
     environment: *app-env
     volumes:
       - ./data/live:/app/data/live
+
+  invites:
+    profiles: ["jobs"]
+    image: estatepulse-app:latest
+    build: .
+    command: ["python", "scripts/send_portal_invites.py"]   # add --send to actually email
+    environment:
+      <<: *app-env
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes:
+      - intake:/app/data/intake
+
+volumes:
+  intake: {}

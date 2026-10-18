@@ -85,7 +85,18 @@ def bronze(fetch_fred, fetch_raleigh, fetch_cary, fetch_env, snapshot_dir=None):
     out["neighborhoods_raw"] = [dict(h) for h in hoods]
     import csv
     with open(os.path.join(DATA_DIR, "listings.csv")) as f:
-        out["listings_raw"] = [dict(r, source_mode="synthetic_sample") for r in csv.DictReader(f)]
+        sample = [dict(r, source_mode="synthetic_sample") for r in csv.DictReader(f)]
+    cols = list(sample[0]) if sample else []
+    zillow = []
+    try:  # parsed Zillow pages + live feed (pipeline/listings.py), stored with the same columns as strings
+        with open(os.path.join(DATA_DIR, "zillow", "listings.json")) as f:
+            for r in json.load(f).get("listings", []):
+                row = {c: ("|".join(r[c]) if isinstance(r.get(c), list) else str(r.get(c, ""))) for c in cols if c != "source_mode"}
+                zillow.append(dict(row, source_mode=r.get("source") or "zillow"))
+    except (OSError, ValueError):
+        pass
+    out["listings_raw"] = zillow + sample
+    log["listings"] = {"zillow": len(zillow), "sample": len(sample)}
     return out, log
 
 

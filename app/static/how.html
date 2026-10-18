@@ -84,8 +84,7 @@ function load() {
 
 fetch("api/meta").then(function (r) { return r.json(); }).then(function (m) {
   $("commute_destination").innerHTML = m.destinations.map(function (d) { return "<option" + (d === "rtp" ? " selected" : "") + ">" + esc(d) + "</option>"; }).join("");
-  var ids = []; for (var i = 1001; i < 1001 + m.listings; i++) ids.push(i);
-  return Promise.all(ids.map(function (id) { return id; }));
+  return m.listing_ids;
 }).then(function (ids) {
   return fetch("api/rescore", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ids: ids, profile: {}, weights: {}})})
     .then(function (r) { return r.json(); });
@@ -93,6 +92,9 @@ fetch("api/meta").then(function (r) { return r.json(); }).then(function (m) {
   rows.sort(function (a, b) { return a.listing.id - b.listing.id; });
   $("pick").innerHTML = rows.map(function (r) { var L = r.listing; return "<option value='" + L.id + "'>" + esc(L.address) + " · " + esc(L.neighborhood) + "</option>"; }).join("");
   var want = new URLSearchParams(location.search).get("id");
+  if (want && !rows.some(function (r) { return String(r.listing.id) === want; })) {
+    $("pick").insertAdjacentHTML("afterbegin", "<option value='" + esc(want) + "'>listing " + esc(want) + "</option>");
+  }
   if (want) $("pick").value = want;
   ["pick", "max_price", "annual_income", "min_beds", "commute_destination"].forEach(function (k) { $(k).addEventListener("change", load); });
   load();

@@ -3,13 +3,15 @@
 Run:  uvicorn app.server:app --host 0.0.0.0 --port 8501
 """
 import itertools, json, os, queue, re, threading, time
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agents, jev as J, live, metric_agents as MA, metrics as M, tools as T, valuation
+from . import agents, intake as I, jev as J, live, metric_agents as MA, metrics as M, tools as T, valuation
 from pipeline import http as pipeline_http
+from pipeline import listings as PL
+from pipeline.sources import zillow as Z
 
 app = FastAPI(title="DreamHome AI (Nemotron)")
 STATIC = os.path.join(os.path.dirname(__file__), "static")
@@ -18,6 +20,7 @@ STATIC = os.path.join(os.path.dirname(__file__), "static")
 class MatchRequest(BaseModel):
     dream: str = ""
     form: dict = {}
+    portal_token: str = ""  # questionnaire path: profile comes from the client's intake record
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
@@ -26,6 +29,16 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 @app.get("/")
 def index():
     return FileResponse(os.path.join(STATIC, "index.html"))
+
+
+@app.get("/start")
+def start_page():
+    return FileResponse(os.path.join(STATIC, "start.html"))
+
+
+@app.get("/portal")
+def portal_page():
+    return FileResponse(os.path.join(STATIC, "portal.html"))
 
 
 @app.get("/value")
@@ -173,13 +186,86 @@ def health():
 
 @app.get("/api/data-status")
 def data_status():
-    return {**live.status(), "jev_enabled": J.enabled(), "jev_backend": J.backend()}
+    by_source = {}
+    for r in T.LISTINGS:
+        by_source[r.get("source") or "unknown"] = by_source.get(r.get("source") or "unknown", 0) + 1
+    return {**live.status(), "jev_enabled": J.enabled(), "jev_backend": J.backend(), "listings_by_source": by_source,
+            "live_listings_feed": "rentcast" if os.getenv("RENTCAST_API_KEY") else None,
+            "google_maps": bool(os.getenv("GOOGLE_MAPS_API_KEY"))}
 
 
 @app.get("/api/agents")
 def agent_registry():
-    """The 10 metric agents and the result of the configuration check."""
-    return {"agents": MA.describe(), "problems": MA.validate_registry()}
+    """The 6 Nemotron agents, the 10 metrics they own, and the result of the configuration check."""
+    return {"agents": MA.describe(), "metrics": MA.describe_metrics(), "problems": MA.validate_registry()}
+
+
+# ------------------------------------------------------------------ Home Match Toolkit (questionnaire + portal)
+@app.post("/api/intake")
+def create_intake(body: dict):
+    """Questionnaire submission: {answers: {...}, document: {name, data: base64} | null}."""
+    try:
+        rec = I.create(body.get("answers") or {}, body.get("document"))
+    except I.IntakeError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:  # storage failure: never echo internals or document details
+        raise HTTPException(503, f"could not store your submission right now ({type(e).__name__}); please try again")
+    return {"id": rec["id"], "portal_token": I.portal_token(rec["id"]), "showings_unlocked": rec["showings_unlocked"],
+            "document_stored_in": (rec.get("document") or {}).get("stored_in"), "profile": rec["profile"]}
+
+
+@app.get("/api/portal")
+def portal(token: str):
+    intake_id = I.verify_token(token)
+    rec = I.load(intake_id) if intake_id else None
+    if not rec:
+        raise HTTPException(401, "this sign-in link is invalid or has expired")
+    return I.public_view(rec)
+
+
+@app.post("/api/admin/intake/{intake_id}/kickoff")
+def kickoff(intake_id: str, body: dict = None, x_admin_token: str = Header(default="")):
+    """Advisor marks the kickoff meeting done; scripts/send_portal_invites.py then emails the sign-in link."""
+    import hmac
+    want = os.getenv("ADMIN_TOKEN", "")
+    if not want or not hmac.compare_digest(x_admin_token, want):
+        raise HTTPException(403, "admin token required")
+    try:
+        rec = I.mark_kickoff(intake_id, (body or {}).get("advisor"))
+    except I.IntakeError as e:
+        raise HTTPException(400, str(e))
+    if not rec:
+        raise HTTPException(404, "unknown intake")
+    return {"id": rec["id"], "status": rec["status"], "kickoff_completed_at": rec["kickoff_completed_at"]}
+
+
+# ------------------------------------------------------------------ Zillow
+@app.get("/api/zillow/search-url")
+def zillow_search_url(location: str):
+    return {"location": location, "url": Z.search_url(location)}
+
+
+@app.post("/api/zillow/import")
+def zillow_import(body: dict):
+    """A Zillow page the user saved from their own browser: {name, html}. Parsed, cleaned, added to the listing store."""
+    page = body.get("html") or ""
+    if not page or len(page) > 15_000_000:
+        raise HTTPException(400, "send the saved page's HTML (max 15 MB)")
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", body.get("name") or "zillow_page")[:80]
+    raw = [dict(r, source="zillow_upload") for r in Z.parse_html(page, name)]
+    if not raw:
+        hint = "it looks like a CAPTCHA page" if "captcha" in page.lower() else "no Zillow listing data found in it"
+        raise HTTPException(422, f"could not read listings from that page: {hint}")
+    rows, report = PL.clean(raw)
+    added = T.add_listings(rows)
+    try:  # keep the page so the next pipeline build includes it
+        os.makedirs(PL.SAVED_DIR, exist_ok=True)
+        with open(os.path.join(PL.SAVED_DIR, name if name.endswith((".html", ".htm")) else name + ".html"), "w") as f:
+            f.write(page)
+    except OSError:
+        pass
+    return {"parsed": len(raw), "added": len(added), "quality": report,
+            "listings": [{k: r.get(k) for k in ("id", "address", "city", "price", "beds", "baths", "sqft")} for r in rows[:50]]}
 
 
 @app.get("/api/gym")
@@ -197,7 +283,8 @@ def gym_summary():
 def meta():
     return {"cities": T.CITIES, "features": T.FEATURES, "destinations": sorted(T.DESTINATIONS),
             "neighborhoods": [{"name": h["name"], "city": h["city"]} for h in T.HOODS.values()],
-            "criteria": T.CRITERIA, "listings": len(T.LISTINGS)}
+            "criteria": T.CRITERIA, "listings": len(T.LISTINGS),
+            "listing_ids": [r["id"] for r in T.LISTINGS if r["id"] > 0][:500]}
 
 
 @app.post("/api/rescore")
@@ -210,9 +297,19 @@ def rescore(body: dict):
 def match(req: MatchRequest):
     q: "queue.Queue" = queue.Queue()
 
+    profile = None
+    if req.portal_token:
+        intake_id = I.verify_token(req.portal_token)
+        rec = I.load(intake_id) if intake_id else None
+        if not rec:
+            raise HTTPException(401, "sign-in link invalid or expired")
+        profile = dict(rec["profile"])
+        if req.form.get("weights"):
+            profile["weights"] = {**profile["weights"], **req.form["weights"]}
+
     def worker():
         try:
-            agents.run_pipeline(req.dream, req.form, q.put)
+            agents.run_pipeline(req.dream, req.form, q.put, profile=profile)
         except Exception as e:  # never leave the UI hanging
             q.put({"type": "error", "message": str(e)[:300]})
         q.put(None)

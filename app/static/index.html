@@ -92,7 +92,9 @@ header{position:static}
 </header>
 <main>
   <aside class="card">
-    <h2>Describe your dream home</h2>
+    <div id="tokenbox" class="foot" style="display:none;margin:0 0 10px;padding:10px;border:1px solid var(--accent);border-radius:8px"></div>
+    <a class="go" href="start" style="display:block;text-align:center;text-decoration:none;margin:0 0 14px;padding:10px;border-radius:10px;background:var(--chip);color:var(--ink);font-weight:600">New here? Start the Home Match Toolkit →</a>
+    <h2>Quick search</h2>
     <textarea id="dream">We're a family of four, both work at RTP. Want a quiet, safe neighborhood with great schools, a fenced yard for the dog and a home office. Budget around $550k, household income $165k.</textarea>
     <div class="row2">
       <div><label>Max price ($)</label><input id="max_price" type="number" placeholder="from text"></div>
@@ -100,33 +102,40 @@ header{position:static}
       <div><label>Min beds</label><input id="min_beds" type="number" min="0" placeholder="any"></div>
       <div><label>Down payment %</label><input id="down_payment_pct" type="number" value="20"></div>
     </div>
-    <label>Commute to</label><select id="commute_destination"><option value="">let the agent decide</option></select>
+    <label>Target neighborhoods / ZIP codes</label><input id="location" placeholder="e.g. Cary, 27513, Apex">
+    <label>Commute to</label><select id="commute_destination"><option value="">downtown Raleigh (default)</option></select>
     <label>Cities (optional)</label><div class="chips" id="cities"></div>
     <h2 style="margin-top:18px">Criteria weights</h2>
     <div id="weights"></div>
-    <div class="foot">Sliders re-rank instantly. Leave them untouched and the Concierge agent sets them from your description.</div>
+    <div class="foot">Sliders re-rank instantly. Your Home Match questionnaire sets them; otherwise they start at our defaults.</div>
     <button class="go" id="go">Find my dream home</button>
+    <h2 style="margin-top:22px">Add Zillow listings</h2>
+    <div class="foot" style="margin-top:0">Open the Zillow search for your area, save the page (Ctrl/Cmd+S, "Webpage, HTML only") and drop it here. We parse every listing on it.</div>
+    <a id="zlink" class="foot" target="_blank" rel="noopener" href="https://www.zillow.com/homes/" style="display:inline-block;color:var(--accent-ink)">Open Zillow search →</a>
+    <input id="zfile" type="file" accept=".html,.htm" style="margin-top:8px">
+    <div class="foot" id="zout"></div>
   </aside>
 
   <section class="stack">
     <div class="crew" id="crew"></div>
-    <div class="card"><h2>10 metric agents · Nemotron tool-calling</h2><div class="ma" id="ma"></div><div class="foot" id="ma-cfg"></div></div>
+    <div class="card"><h2>6 Nemotron agents · tool-calling on vLLM</h2><div class="ma" id="ma"></div><div class="foot" id="ma-cfg"></div></div>
     <div class="card"><h2>Decision matrix</h2><div class="matrix" id="matrix"><div class="empty">Run the crew to see your top homes scored side by side.</div></div></div>
-    <div class="card"><h2>Matchmaker's recommendation</h2><div class="rec" id="rec"><span class="empty" style="padding:0">—</span></div></div>
+    <div class="card"><h2>JEB recommendation</h2><div class="rec" id="rec"><span class="empty" style="padding:0">—</span></div></div>
     <div class="card"><h2>Shortlist</h2><div class="homes" id="homes"></div></div>
     <div class="card"><h2>Agent telemetry</h2><div id="log"></div>
-      <div class="foot">Demo listings and neighborhood stats are synthetic sample data. Payment figures are estimates, not financial advice.</div></div>
+      <div class="foot" id="srcnote">Listings: Zillow pages you import and live feeds when configured, plus synthetic sample homes. Payment figures are estimates, not financial advice.</div></div>
   </section>
 </main>
 <script>
-const CREW=[["Concierge","Turns your words into a profile"],["Listings Scout","Searches the housing DB"],["Metric Agents","10 specialists, one per score"],["Jev Decision Layer","Calibrated safety, fit & verdict"],["Matchmaker","Explains the winner"]];
+const CREW=[["Buyer Profile","Questionnaire → weights"],["Zillow Listing Agent","Finds & cleans listings"],["Scoring Agents","5 specialists in parallel"],["Jev Decision Layer","JEB: calibrated judgements"],["JEB Recommendation","Explains the winner"]];
 let LABEL={lifestyle:"Lifestyle",school:"School",safety:"Safety",environment:"Environment",urban:"Urban",commute:"Commute",forecast:"Value / Forecast",deal:"Deal",rooms:"Rooms / Layout",maintenance:"Maintenance"};
 let AGENTS=[], maDone=0;
-function maUI(){ $("ma").innerHTML=AGENTS.map(function(a){return "<div class=\"row\" id=\"ma-"+a.key+"\"><span class=\"dot\"></span><b>"+a.name+"</b><span class=\"tag\">"+(a.gym_mode==="eval+rl"?"NeMo Gym eval+RL":"NeMo Gym eval")+"</span><div class=\"t\">"+a.sources+"</div></div>";}).join(""); maDone=0; }
+function maUI(){ $("ma").innerHTML=AGENTS.map(function(a,i){return "<div class=\"row\" id=\"ma-"+a.key+"\"><span class=\"dot\"></span><b>"+(i+1)+". "+a.name+"</b><span class=\"tag\">"+(a.labels.length?a.labels.join(" · "):"listings")+"</span><div class=\"t\">"+a.sources+"</div></div>";}).join(""); maDone=0; }
 function maSet(k,cls,txt){ const el=$("ma-"+k); if(!el)return; el.className="row "+cls; if(txt) el.querySelector(".t").textContent=txt; }
 let state={criteria:Object.keys(LABEL),weights:{},touched:false,ids:[],profile:null,rows:[],jev:null};
 const VERD={tour_now:"tour now",consider:"consider",pass:"pass"};
 const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=n=>"$"+Math.round(n).toLocaleString();
 
 function crewUI(){ $("crew").innerHTML=CREW.map(([n,r])=>`<div class="agent" data-a="${n}"><div class="n"><span class="dot"></span>${n}</div><div class="r">${r}</div><div class="s">idle</div></div>`).join(""); }
@@ -140,13 +149,13 @@ function matrixUI(rows){
   state.rows=rows; const top=rows.slice(0,5);
   if(!top.length){$("matrix").innerHTML='<div class="empty">No homes matched — widen the budget or cities.</div>';return;}
   const w=state.weights;
-  let h="<table><thead><tr><th></th>"+top.map((r,i)=>`<th class="${i==0?'rank1':''}"><div class="sub">#${i+1}</div><div class="addr">${r.listing.address}</div><div class="sub">${r.listing.neighborhood} · ${fmt(r.listing.price)}</div>${r.jev&&r.jev.verdict?`<span class="verdict ${r.jev.verdict}">${r.jev.engine==="jev"?"Jev":"rules"}: ${VERD[r.jev.verdict]||r.jev.verdict}</span>`:""}</th>`).join("")+"</tr></thead><tbody>";
+  let h="<table><thead><tr><th></th>"+top.map((r,i)=>`<th class="${i==0?'rank1':''}"><div class="sub">#${i+1}</div><div class="addr">${esc(r.listing.address)}</div><div class="sub">${esc(r.listing.neighborhood)} · ${fmt(r.listing.price)}</div>${r.jev&&r.jev.verdict?`<span class="verdict ${r.jev.verdict}">${r.jev.engine==="jev"?"Jev":"rules"}: ${VERD[r.jev.verdict]||r.jev.verdict}</span>`:""}</th>`).join("")+"</tr></thead><tbody>";
   for(const c of state.criteria){
     h+=`<tr><th>${LABEL[c]}<small>×${w[c]??0}</small></th>`+top.map(r=>{const v=r.scores[c];return `<td class="c" style="background:${heat(v)};color:${v>=70?'#0d1a00':'inherit'}">${v}</td>`}).join("")+"</tr>";
   }
   h+=`<tr class="total"><th>Fit score</th>`+top.map(r=>`<td>${r.total}</td>`).join("")+"</tr></tbody></table>";
   $("matrix").innerHTML=h;
-  $("homes").innerHTML=rows.slice(0,9).map((r,i)=>{const L=r.listing,N=r.neighborhood,F=r.finance;return `<div class="home"><div class="meta">#${i+1} · fit ${r.total}</div><div class="p">${fmt(L.price)}</div><div>${L.address}, ${L.city}</div><div class="meta">${L.beds} bd · ${L.baths} ba · ${L.sqft.toLocaleString()} sqft · ${L.property_type}</div><div class="meta">≈ ${fmt(F.monthly_total)}/mo @ ${F.rate_pct}%${F.housing_ratio_pct?` (${F.housing_ratio_pct}% of income)`:""} · ${N.commute_minutes} min to ${N.commute_to}</div><div class="f">${L.features.slice(0,5).map(f=>`<span>${f}</span>`).join("")}</div><a class="math" href="how?id=${L.id}">See the math →</a></div>`}).join("");
+  $("homes").innerHTML=rows.slice(0,9).map((r,i)=>{const L=r.listing,N=r.neighborhood,F=r.finance;return `<div class="home"><div class="meta">#${i+1} · fit ${r.total}</div><div class="p">${fmt(L.price)}</div><div>${esc(L.address)}, ${esc(L.city)}</div><div class="meta">${L.beds} bd · ${L.baths} ba · ${L.sqft.toLocaleString()} sqft · ${esc(L.property_type)}${L.source&&L.source!=="synthetic_sample"?" · "+esc(L.source.replace(/_/g," ")):""}</div><div class="meta">≈ ${fmt(F.monthly_total)}/mo @ ${F.rate_pct}%${F.housing_ratio_pct?` (${F.housing_ratio_pct}% of income)`:""} · ${N.commute_minutes} min to ${N.commute_to}</div><div class="f">${L.features.slice(0,5).map(f=>`<span>${esc(f)}</span>`).join("")}</div><a class="math" href="how?id=${L.id}">See the math →</a>${L.url&&/^https:\/\/www\.zillow\.com\//.test(L.url)?` · <a class="math" target="_blank" rel="noopener" href="${esc(L.url)}">Zillow →</a>`:""}</div>`}).join("");
 }
 let rsT; function rescore(){ if(!state.ids.length)return; clearTimeout(rsT); rsT=setTimeout(async()=>{
   const r=await fetch("api/rescore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:state.ids,profile:state.profile||{},weights:state.weights,jev:state.jev})}).then(r=>r.json()); matrixUI(r);},120);}
@@ -154,17 +163,17 @@ function log(html){$("log").insertAdjacentHTML("beforeend",html+"<br>");$("log")
 const t0={};
 function onEvent(e){
   switch(e.type){
-    case "start": log(e.health.ok?`model <b>${e.health.model}</b> @ ${e.health.base_url}`:`<span class="fb">Nemotron unreachable — fallbacks active</span>`); setAgent("Concierge","run","thinking…"); break;
+    case "start": log(e.health.ok?`model <b>${e.health.model}</b> @ ${e.health.base_url} · ${e.agents} agents`:`<span class="fb">Nemotron unreachable — fallbacks active</span>`); setAgent("Buyer Profile","run","reading…"); break;
     case "llm": setAgent(e.agent,"run",`LLM ${e.ms} ms${e.tool_calls.length?" → "+e.tool_calls.length+" tool call(s)":""}`); log(`<span class="a">${e.agent}</span> nemotron ${e.ms}ms ${e.tool_calls.join(", ")}`); break;
     case "tool": log(`&nbsp;&nbsp;↳ ${e.tool}(${JSON.stringify(e.args)}) ${e.ms}ms → ${typeof e.result_preview=="string"?e.result_preview:JSON.stringify(e.result_preview)}`); break;
     case "fallback": setAgent(e.agent,"fb","fallback: "+e.reason.slice(0,40)); log(`<span class="fb">${e.agent} fallback: ${e.reason}</span>`); break;
-    case "metric_agent": maDone++; maSet(e.key, e.status==="done"?"done":"fb", (e.status==="done"?"":"fallback · ")+e.ms+" ms · "+(e.text||"tool ran")); setAgent("Metric Agents", maDone===10?"done":"run", maDone+"/10 done"); break;
+    case "crew_agent": maDone++; maSet(e.key, e.status==="done"?"done":"fb", (e.status==="done"?"":"fallback · ")+e.ms+" ms · "+(e.text||"tool ran")); setAgent("Scoring Agents", maDone===5?"done":"run", maDone+"/5 done"); break;
     case "say": log(`<span class="a">${e.agent}</span> “${e.text}”`); break;
-    case "profile": state.profile=e.profile; if(!state.touched){state.weights={...e.profile.weights}; weightsUI(state.weights);} setAgent("Concierge","done",e.profile.summary?.slice(0,60)||"profile set"); setAgent("Listings Scout","run","searching…"); break;
-    case "shortlist": state.ids=e.ids; setAgent("Listings Scout","done",`${e.ids.length} candidates`); setAgent("Metric Agents","run","0/10 done"); AGENTS.forEach(function(a){maSet(a.key,"run","calling "+a.tool+"…");}); setAgent("Jev Decision Layer","run","waiting for analysts…"); break;
+    case "profile": state.profile=e.profile; if(!state.touched){state.weights={...e.profile.weights}; weightsUI(state.weights);} setAgent("Buyer Profile","done",(e.profile.summary||"profile set").slice(0,60)); setAgent("Zillow Listing Agent","run","searching…"); maSet("listing","run","calling find_listings…"); break;
+    case "shortlist": state.ids=e.ids; setAgent("Zillow Listing Agent","done",`${e.ids.length} homes · ${(e.sources||[]).join(", ")}`); maSet("listing","done",`${e.ids.length} homes from ${(e.sources||[]).join(", ")}${e.feed&&e.feed.live_feed?" · live feed: "+e.feed.live_feed:""}`); setAgent("Scoring Agents","run","0/5 done"); AGENTS.forEach(function(a){if(a.metrics.length)maSet(a.key,"run","calling "+a.tool+"…");}); setAgent("Jev Decision Layer","run","waiting for agents…"); if(e.feed&&e.feed.zillow_search_url)$("zlink").href=e.feed.zillow_search_url; break;
     case "jev": setAgent("Jev Decision Layer","done",`${e.engine==="jev"?"Jev":"rules fallback"} · ${e.calls} calls · ${e.ms} ms`); log(`<span class="a">Jev Decision Layer</span> engine=${e.engine} ${e.calls} parallel calls in ${e.ms}ms (p50 ${e.p50_call_ms}ms)${e.errors.length?` <span class="fb">${e.errors[0]}</span>`:""}`); break;
-    case "matrix": state.jev=e.jev;  setAgent("Matchmaker","run","writing…"); if(state.touched){rescore()}else{matrixUI(e.rows)} break;
-    case "recommendation": $("rec").textContent=e.text; setAgent("Matchmaker","done","done"); break;
+    case "matrix": state.jev=e.jev;  setAgent("JEB Recommendation","run","writing…"); if(state.touched){rescore()}else{matrixUI(e.rows)} break;
+    case "recommendation": $("rec").textContent=e.text; setAgent("JEB Recommendation","done","done"); break;
     case "done": log(`<b>pipeline finished in ${(e.ms/1000).toFixed(1)} s</b>`); break;
     case "error": log(`<span class="fb">error: ${e.message}</span>`); break;
   }
@@ -173,10 +182,11 @@ async function go(){
   $("go").disabled=true; $("log").innerHTML=""; crewUI(); maUI();
   const form={}; ["max_price","annual_income","min_beds","down_payment_pct"].forEach(k=>{const v=$(k).value; if(v!=="")form[k]=+v;});
   const cd=$("commute_destination").value; if(cd)form.commute_destination=cd;
+  const loc=$("location").value.trim(); if(loc)form.location=loc;
   const cities=[...document.querySelectorAll("#cities .chip.on")].map(c=>c.textContent); if(cities.length)form.cities=cities;
   if(state.touched)form.weights=state.weights;
   try{
-    const res=await fetch("api/match",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dream:$("dream").value,form})});
+    const res=await fetch("api/match",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dream:$("dream").value,form,portal_token:state.token||""})});
     const rd=res.body.getReader(),dec=new TextDecoder(); let buf="";
     for(;;){const {value,done}=await rd.read(); if(done)break; buf+=dec.decode(value,{stream:true}); let i; while((i=buf.indexOf("\n"))>=0){const line=buf.slice(0,i);buf=buf.slice(i+1); if(line.trim())onEvent(JSON.parse(line));}}
   }catch(err){log(`<span class="fb">${err}</span>`)}
@@ -184,7 +194,7 @@ async function go(){
 }
 (async()=>{
   crewUI();
-  try{const ag=await fetch("api/agents").then(r=>r.json()); AGENTS=ag.agents; ag.agents.forEach(function(a){LABEL[a.key]=a.label; state.weights[a.key]=a.default_weight;}); maUI(); $("ma-cfg").textContent=ag.problems.length?("config problems: "+ag.problems.join("; ")):"Registry check: all 10 agents have a tool, scorer, weight and NeMo Gym harness.";}catch(e){}
+  try{const ag=await fetch("api/agents").then(r=>r.json()); AGENTS=ag.agents; LABEL={}; ag.metrics.forEach(function(m){LABEL[m.key]=m.label; state.weights[m.key]=m.default_weight;}); maUI(); $("ma-cfg").textContent=ag.problems.length?("config problems: "+ag.problems.join("; ")):"Registry check: 6 agents, each of the 10 scores owned exactly once, every metric has a scorer, weight and NeMo Gym harness.";}catch(e){}
   state.criteria=Object.keys(LABEL); weightsUI(state.weights);
   $("go").onclick=go;
   const m=await fetch("api/meta").then(r=>r.json());
@@ -194,7 +204,16 @@ async function go(){
   try{const d=await fetch("api/data-status").then(r=>r.json());
     $("rate").textContent=`30-yr ${d.mortgage_30y}%`+(d.mortgage_source.as_of?` · FRED ${d.mortgage_source.as_of}`:" · default");
     const p=(d.sources||{}).police||{}; $("police").textContent=d.live_safety_neighborhoods?`police: ${d.live_safety_neighborhoods} areas · ${d.police_lookback_days}d live`:"police: baseline";
-    $("jevchip").textContent=d.jev_enabled?("Jev: "+(d.jev_backend==="vllm"?"vLLM":d.jev_backend)):"Jev: rules fallback";}catch(e){}
+    $("jevchip").textContent=d.jev_enabled?("Jev: "+(d.jev_backend==="vllm"?"vLLM":d.jev_backend)):"Jev: rules fallback";
+    const ls=d.listings_by_source||{}; $("srcnote").textContent="Listings: "+Object.entries(ls).map(([k,v])=>v+" "+k.replace(/_/g," ")).join(" · ")+". Payment figures are estimates, not financial advice.";}catch(e){}
+  $("location").oninput=()=>{$("zlink").href="https://www.zillow.com/homes/"+encodeURIComponent($("location").value.trim().replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,""))+"_rb/";};
+  $("zfile").onchange=async ev=>{const f=ev.target.files[0]; if(!f)return; $("zout").textContent="parsing "+f.name+"…";
+    try{const r=await fetch("api/zillow/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:f.name,html:await f.text()})}); const d=await r.json();
+      $("zout").textContent=r.ok?`${d.parsed} listings found, ${d.added} new after cleaning (${d.quality.dropped_not_for_sale} not for sale, ${d.quality.dropped_incomplete} incomplete, ${d.quality.dropped_duplicate} duplicates removed). Run the search to include them.`:(d.detail||"could not read that page");}catch(e){$("zout").textContent=String(e)}};
+  const tok=new URLSearchParams(location.search).get("token")||(()=>{try{return sessionStorage.getItem("portal_token")}catch(_){return null}})();
+  if(tok){try{const r=await fetch("api/portal?token="+encodeURIComponent(tok)); if(r.ok){const d=await r.json(); state.token=tok; try{sessionStorage.setItem("portal_token",tok)}catch(_){}
+    history.replaceState(null,"",location.pathname); state.weights={...d.profile.weights}; weightsUI(state.weights); if(d.profile.location)$("location").value=d.profile.location; $("dream").value=d.profile.summary||"";
+    $("tokenbox").style.display="block"; $("tokenbox").innerHTML=`Using <b>${esc(d.name.split(" ")[0])}'s</b> Home Match profile · showings ${d.showings_unlocked?"unlocked":"locked"} · <a href="portal">portal</a>`; go();}}catch(e){}}
   const h=await fetch("api/health").then(r=>r.json());
   $("health").textContent=h.ok?"● "+h.model:"● Nemotron offline (fallback mode)"; $("health").className=h.ok?"":"bad";
 })();

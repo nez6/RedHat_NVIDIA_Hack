@@ -1,4 +1,4 @@
-"""The 10 metric agents must be wired correctly: tool, scorer, weight, prompt, NeMo Gym mode, fallbacks."""
+"""The 6 Nemotron agents and the 10 metrics they own must be wired correctly: tools, scorers, weights, Gym modes, fallbacks."""
 import pytest
 
 from app import metric_agents as MA, metrics as M, tools as T
@@ -9,7 +9,23 @@ PROFILE = {"max_price": 500_000, "annual_income": 150_000, "min_beds": 3, "must_
 
 def test_registry_is_valid():
     assert MA.validate_registry() == []
-    assert [a.key for a in MA.AGENTS] == M.METRICS == T.CRITERIA
+    assert [a.key for a in MA.AGENTS] == ["listing", "safety", "commute", "budget", "lifestyle", "property"]
+    assert [s.key for s in MA.SPECS] == M.METRICS == T.CRITERIA
+    assert sorted(m for a in MA.AGENTS for m in a.metrics) == sorted(M.METRICS)
+    assert MA.BY_KEY["budget"].metrics == ("deal", "forecast") and MA.BY_KEY["budget"].gym_mode == "eval+rl"
+
+
+def test_registry_catches_a_metric_owned_twice(monkeypatch):
+    bad = list(MA.AGENTS)
+    bad[2] = MA.CrewAgent("commute", "Commute", "q", "s", ("commute", "deal"), "src", "eval")
+    monkeypatch.setattr(MA, "AGENTS", bad)
+    assert any("exactly once" in p for p in MA.validate_registry())
+
+
+def test_group_tool_returns_every_owned_metric_per_listing():
+    rows = MA.group_evidence(MA.BY_KEY["property"], [1001, 1002], PROFILE)
+    assert [r["listing_id"] for r in rows] == [1001, 1002]
+    assert {"maintenance", "rooms"} <= set(rows[0]) and 0 <= rows[0]["rooms"]["score"] <= 100
 
 
 @pytest.mark.parametrize("metric", M.METRICS)
@@ -19,8 +35,8 @@ def test_each_metric_scores_every_listing_in_range(metric):
         assert 0 <= out["score"] <= 100, (metric, r["id"], out)
 
 
-@pytest.mark.parametrize("agent", MA.AGENTS, ids=lambda a: a.key)
-def test_each_agent_tool_returns_one_row_per_listing(agent):
+@pytest.mark.parametrize("agent", MA.SPECS, ids=lambda a: a.key)
+def test_each_metric_tool_returns_one_row_per_listing(agent):
     rows = M.run_tool(agent.key, [1001, 1002, 999999], PROFILE)
     assert [r["listing_id"] for r in rows] == [1001, 1002, 999999]
     assert "error" in rows[2] and "score" in rows[0]
@@ -55,7 +71,7 @@ def test_user_controls_change_scores():
 def test_agent_falls_back_when_it_skips_its_tool():
     events = []
     lazy = lambda *a, **k: ("I am confident without data.", [])  # never calls the tool
-    key, status = MA.run_one(MA.BY_KEY["deal"], [1001, 1002], PROFILE, events.append, lazy)
+    key, status = MA.run_one(MA.BY_KEY["budget"], [1001, 1002], PROFILE, events.append, lazy)
     assert status == "fallback" and any(e["type"] == "fallback" for e in events)
 
 
@@ -67,4 +83,4 @@ def test_agent_uses_its_tool_when_model_calls_it():
         return f"best is {rows[0]['listing_id']}", []
 
     key, status = MA.run_one(MA.BY_KEY["safety"], [1001], PROFILE, events.append, good)
-    assert status == "done" and events[-1]["text"] == "best is 1001"
+    assert status == "done" and events[-1]["text"] == "best is 1001" and events[-1]["type"] == "crew_agent"

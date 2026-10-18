@@ -328,3 +328,84 @@ curl -s localhost:8501/v1/systemone -H 'content-type: application/json' -d '{
 | `off` | Deterministic rule engine only |
 
 If vLLM is unreachable, every decision falls back to the rule engine and the UI labels it "rules fallback". Check it with `env/bin/python scripts/jev_probe.py`.
+
+
+## 🏗 Architecture v3: 6 Nemotron agents + Zillow + Home Match Toolkit
+
+This section supersedes the earlier "10 custom agents" layout. The 10 scores still exist (they are what NeMo Gym evaluates and what the matrix ranks), but they are now owned by 6 agents, matching the architecture slide.
+
+```
+Data ingestion                         vLLM · NVIDIA Nemotron 3.5 Lightning (30B total / ~3B active)
+  Questionnaire (Home Match Toolkit)     6 agents: parse data, delete duplicate / non-existent listings,
+  FRED · Google Maps commute             write the first files for Databricks to ingest
+  Zillow listings (parser)                         │
+  Safety: police + weather                       Databricks ELT: BRONZE → SILVER → GOLD
+                                                    │
+                                        vLLM · JEB: fast quick-math decisions (Jev pattern) → matrix of homes
+Docker microservices · UI · API integrations
+```
+
+| # | Agent | Questionnaire question that sets its weight | Scores it owns | Data |
+|---|---|---|---|---|
+| 1 | Zillow Listing Agent | Target neighborhoods / ZIP codes + must-haves | candidate set | Zillow saved-page parser, live feed (RentCast), sample fallback; dedupe + off-market removal |
+| 2 | Safety & Environment Agent | How important is low crime rate and neighborhood stability? | safety, environment | Raleigh / Cary PD incidents (FBI NIBRS categories), FEMA flood, Open-Meteo |
+| 3 | Commute & Location Agent | What is your daily work location and target max commute time? | commute | Google Maps Distance Matrix (`GOOGLE_MAPS_API_KEY`) or drive-time estimate |
+| 4 | Budget & Investment Agent | Cash flow, appreciation, or below-market value? | deal, forecast (NeMo Gym eval + RL) | FRED rates + FHFA HPI, price vs neighborhood $/sqft |
+| 5 | Lifestyle & Amenities Agent | Vibrant urban living or suburban space and schools? | urban, school, lifestyle | GreatSchools ratings from the Zillow listing, walkability, features |
+| 6 | Property Condition Agent | Tolerance for renovation, HOA fees and age of home? | maintenance, rooms | Listing description + facts, year built, HOA, beds / baths / sqft |
+
+Agents 2-6 run in parallel; each calls one tool (`get_<agent>_evidence`) that returns every score it owns for the shortlist. The JEB layer then asks Jev-style questions on the same vLLM, builds the matrix, and Nemotron writes the recommendation.
+
+### Zillow parser
+
+`pipeline/sources/zillow.py` reads Zillow search-results and home-detail pages and walks every embedded JSON blob (including the JSON-in-a-string caches), so it survives layout changes. `pipeline/listings.py` then cleans the data:
+
+1. drops homes that are sold, pending, off-market or for rent
+2. drops records missing price, beds, square feet, coordinates or address, or with impossible values
+3. de-duplicates on normalized street + ZIP; the richer record (detail page over search card) wins
+4. maps each home to the nearest Triangle neighborhood profile (homes more than 8 miles from any profile are dropped)
+5. extracts features (fenced yard, home office, garage …) from the description and Zillow facts
+
+```bash
+# save Zillow pages from your browser into data/zillow/saved/, then:
+env/bin/python -m pipeline.listings                       # -> data/zillow/listings.json + quality report
+env/bin/python -m pipeline.listings --location "Cary, NC"  # also pull live listings (RENTCAST_API_KEY)
+```
+
+Or upload a saved page in the app ("Add Zillow listings"). `LISTINGS_SOURCE=zillow|sample|both` (default `both`) picks what the app serves.
+
+**Why the app doesn't crawl Zillow:** Zillow's Terms of Use prohibit automated queries and scraping, and Zillow blocks bots with CAPTCHAs, so a server-side crawler would break mid-demo and put the project at legal risk. When a buyer types a location, the app gives them Zillow's own search link for it; they save the page and we parse it. Live listings by location come from a licensed feed: RentCast today (MLS-sourced, free plan of 50 requests a month, cached 24 hours per area).
+
+### Home Match Toolkit (`/start`)
+
+A questionnaire that comes before any search:
+
+1. **Financing status**: pre-approved (upload letter), paying cash (upload proof of funds), or needs a lender recommendation
+2. **Verified purchasing power**: max purchase price, desired max monthly payment
+3. **Must-haves**: min bedrooms, min bathrooms, target neighborhoods / ZIP codes
+4. **What matters most**: the 5 priority questions above, each 0-5, plus work location, max commute, investment goal, urban vs suburban, renovation tolerance and max HOA
+
+`app/intake.py` turns the answers into the buyer profile and all 10 weights (for example, "appreciation" weights forecast over deal; "suburban" weights schools over urban). A payment cap implies income at the standard 28% housing ratio.
+
+**Documents and client follow-up**
+
+- Uploads are checked (PDF / PNG / JPEG only, 10 MB max) and stored in the Unity Catalog volume `/Volumes/<catalog>/estatepulse_secure/client_documents/<intake id>/`, created by the bundle.
+- One row per client goes to `estatepulse_secure.client_intake`, tagged `pii=client_contact`. Document contents are never copied into tables, logs or the client's record.
+- Without Databricks, documents fall back to a private local folder (`data/intake/`, owner-only permissions, git- and docker-ignored).
+- After the kickoff meeting, an advisor marks it done: `POST /api/admin/intake/<id>/kickoff` with header `X-Admin-Token: $ADMIN_TOKEN`.
+- `scripts/send_portal_invites.py --send` then emails each client a signed sign-in link to their portal. The link expires in 7 days (`PORTAL_SECRET` signs it).
+- No password is ever created or emailed. Run the script on a schedule (cron, GitHub Actions, or `docker compose --profile jobs run --rm invites --send`).
+
+New settings: `RENTCAST_API_KEY`, `GOOGLE_MAPS_API_KEY`, `LISTINGS_SOURCE`, `ADMIN_TOKEN`, `PORTAL_SECRET`, `PORTAL_BASE_URL`, `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM`.
+
+## 🛣 Data roadmap
+
+| Stage | Listing data |
+|---|---|
+| **Now (hackathon)** | Zillow parser for pages buyers save, a licensed live feed by location (RentCast free tier), 61 synthetic sample homes as a fallback |
+| **As we make profit** | Buy API credits from a large listing data hub covering **all open homes** in our markets: MLS access through a RESO Web API / IDX feed, Zillow's Bridge API, or a commercial aggregator. The Zillow Listing Agent already has a provider slot for it, so this is a configuration change rather than a rewrite. |
+| **Scale** | Nightly full-market sync into Databricks bronze, price-history and days-on-market signals in silver, county tax and permit records feeding the maintenance and deal scores |
+
+## ⚖️ Responsible use
+
+Scores are decision support, not financial advice. Neighborhood data describes places, never people. The buyer sets how much safety and schools count, and every score shows its source and formula (`/how`), to stay clear of steering under the Fair Housing Act.

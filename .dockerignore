@@ -12,3 +12,5 @@ results/
 untitled.py
 .env
 *.tmp
+data/intake/
+data/listings_cache/

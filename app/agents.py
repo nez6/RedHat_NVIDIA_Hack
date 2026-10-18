@@ -1,14 +1,13 @@
-"""DreamHome multi-agent crew, all running on NVIDIA Nemotron served by vLLM.
+"""EstatePulse AI crew: 6 Nemotron agents served by vLLM, then the JEB layer (Jev on the same vLLM).
 
-Crew:
-  1. Concierge      - turns the buyer's free-text dream into a structured profile + weights (tool: set_buyer_profile)
-  2. Listings Scout - searches the housing DB (tool: search_listings)
-  3. 10 metric agents (app/metric_agents.py), one per homebuyer-matrix metric, run in parallel
-  4. Jev decision layer - calibrated safety / lifestyle fit / verdict per home
-  5. Matchmaker     - reads the deterministic decision matrix and explains the top picks
+  Home Match Toolkit questionnaire -> buyer profile + weights (deterministic, app/intake.py)
+  1. Zillow Listing Agent        finds homes in the target area (tool: find_listings)
+  2-6. Safety & Environment, Commute & Location, Budget & Investment, Lifestyle & Amenities, Property Condition
+                                 run in parallel, each with one evidence tool (app/metric_agents.py)
+  JEB layer                      Jev calibrated judgements -> decision matrix -> Nemotron writes the recommendation
 
-Every agent degrades gracefully: if Nemotron is unreachable or returns bad tool calls,
-a deterministic fallback keeps the pipeline running (and the UI log says so).
+Every step degrades gracefully: if Nemotron is unreachable or returns bad tool calls, a deterministic fallback keeps
+the pipeline running (and the UI log says so).
 """
 import json, os, re, threading, time
 from openai import OpenAI
@@ -93,62 +92,44 @@ def run_agent(name, system, user, tool_names, emit, max_steps=6, capture=None):
 DEFAULT_WEIGHTS = dict(M.DEFAULT_WEIGHTS)
 
 
-def concierge(dream, form, emit):
-    profile = {}
+def build_profile(dream, form):
+    """Free-text page / form values -> profile (the questionnaire path builds it in app/intake.py instead)."""
+    weights = dict(DEFAULT_WEIGHTS)
+    profile = {k: v for k, v in (form or {}).items() if v not in (None, "", []) and k != "weights"}
+    weights.update((form or {}).get("weights") or {})
+    if profile.get("cities") and not profile.get("location"):
+        profile["location"] = ", ".join(profile["cities"])
+    profile.update(weights=weights, summary=(dream or profile.get("summary") or "")[:300])
+    return profile
 
-    def capture(args):
-        profile.update(args)
-        return {"saved": True}
 
-    system = ("You are the Concierge agent for DreamHome, a Raleigh-Durham (NC Triangle) home-matching service. "
-              "Read the buyer's description and the form values, then call set_buyer_profile exactly once. "
-              "Use only enum values from the schema. Infer weights 0-5 from what they emphasise "
-              "(e.g. 'kids' -> schools 5, 'walk to cafes' -> commute/features). Form values override the text.")
-    user = f"Buyer description:\n{dream}\n\nForm values (JSON):\n{json.dumps(form)}"
+def listing_agent(profile, emit):
+    """Zillow Listing Agent: find_listings for the buyer's area; deterministic top-up if the model under-delivers."""
+    agent = MA.BY_KEY["listing"]
+    filt = {k: profile.get(k) for k in ("location", "max_price", "min_beds", "min_baths", "property_types", "must_have_features")}
+    found, feed = {}, {}
     try:
-        run_agent("Concierge", system, user, ["set_buyer_profile"], emit, max_steps=2,
-                  capture={"set_buyer_profile": capture})
-    except Exception as e:
-        emit({"type": "fallback", "agent": "Concierge", "reason": str(e)[:160]})
-    # merge: explicit form values win, then model output, then defaults
-    merged = {"weights": dict(DEFAULT_WEIGHTS)}
-    merged.update({k: v for k, v in profile.items() if v not in (None, [], "")})
-    merged["weights"] = {**DEFAULT_WEIGHTS, **(profile.get("weights") or {})}
-    for k, v in form.items():
-        if v not in (None, "", []):
-            if k == "weights":
-                merged["weights"].update(v)
-            else:
-                merged[k] = v
-    merged.setdefault("summary", dream[:160])
-    emit({"type": "profile", "profile": merged})
-    return merged
-
-
-def scout(profile, emit):
-    system = ("You are the Listings Scout. Call search_listings to find candidate homes for the buyer profile. "
-              "If fewer than 6 results come back, relax the least important filter and search again. "
-              "Finish with one short sentence on what you found.")
-    filt = {k: profile.get(k) for k in ("max_price", "min_beds", "min_baths", "cities", "property_types", "must_have_features")}
-    found = {}
-    try:
-        text, res = run_agent("Listings Scout", system, f"Buyer profile: {json.dumps(filt)}",
-                              ["search_listings"], emit, max_steps=3)
+        text, res = run_agent(agent.name, agent.system_prompt, f"Buyer profile: {json.dumps(filt)}", ["find_listings"], emit, max_steps=3)
         for name, _, out in res:
-            if isinstance(out, list):
-                for r in out:
+            if isinstance(out, dict):
+                feed = {k: v for k, v in out.items() if k != "listings"}
+                for r in out.get("listings") or []:
                     found[r["id"]] = r
         if text:
-            emit({"type": "say", "agent": "Listings Scout", "text": text})
+            emit({"type": "say", "agent": agent.name, "text": text})
     except Exception as e:
-        emit({"type": "fallback", "agent": "Listings Scout", "reason": str(e)[:160]})
+        emit({"type": "fallback", "agent": agent.name, "reason": str(e)[:160]})
     if len(found) < 6:  # deterministic safety net
-        relaxed = dict(filt, must_have_features=None, cities=filt.get("cities"))
-        for r in T.search_listings(**relaxed, limit=15) or T.search_listings(max_price=filt.get("max_price"), limit=15):
+        out = T.find_listings(**{k: v for k, v in filt.items() if v not in (None, [], "")}, limit=15)
+        feed = feed or {k: v for k, v in out.items() if k != "listings"}
+        for r in out["listings"]:
             found.setdefault(r["id"], r)
-        emit({"type": "fallback", "agent": "Listings Scout", "reason": f"topped up to {len(found)} candidates"})
+        if len(found) < 6:
+            for r in T.search_listings(max_price=filt.get("max_price"), limit=15):
+                found.setdefault(r["id"], r)
+        emit({"type": "fallback", "agent": agent.name, "reason": f"topped up to {len(found)} candidates"})
     ids = list(found)[:12]
-    emit({"type": "shortlist", "ids": ids})
+    emit({"type": "shortlist", "ids": ids, "feed": feed, "sources": sorted({r.get("source") or "unknown" for r in found.values()})})
     return ids
 
 
@@ -157,7 +138,7 @@ def matchmaker(rows, profile, emit):
             "price": r["listing"]["price"], "total": r["total"], "scores": r["scores"],
             "monthly": r["finance"]["monthly_total"], "rate_pct": r["finance"]["rate_pct"],
             "jev_verdict": (r.get("jev") or {}).get("verdict")} for r in rows[:3]]
-    system = ("You are the Matchmaker. Given the buyer's dream and the decision-matrix results, write a warm, specific "
+    system = ("You are the JEB layer's narrator. Given the buyer's dream and the decision-matrix results, write a warm, specific "
               "recommendation: 1 short paragraph on the #1 home (cite 2-3 scores exactly as given, and mention the live mortgage rate), then one line each for #2 and #3 "
               "on the trade-off vs #1. Under 140 words. Plain text, no markdown headers.")
     user = f"Dream: {profile.get('summary')}\nWeights: {profile['weights']}\nTop 3: {json.dumps(top)}"
@@ -165,9 +146,9 @@ def matchmaker(rows, profile, emit):
         t0 = time.time()
         resp = _chat([{"role": "system", "content": system}, {"role": "user", "content": user}], max_tokens=400)
         text = re.sub(r"<think>.*?</think>", "", resp.choices[0].message.content or "", flags=re.S).strip()
-        emit({"type": "llm", "agent": "Matchmaker", "ms": int((time.time() - t0) * 1000), "tool_calls": []})
+        emit({"type": "llm", "agent": "JEB Recommendation", "ms": int((time.time() - t0) * 1000), "tool_calls": []})
     except Exception as e:
-        emit({"type": "fallback", "agent": "Matchmaker", "reason": str(e)[:160]})
+        emit({"type": "fallback", "agent": "JEB Recommendation", "reason": str(e)[:160]})
         t = top[0] if top else None
         text = (f"#1 is {t['address']} in {t['neighborhood']} (fit {t['total']}), about ${t['monthly']:,}/mo." if t
                 else "No homes matched — try widening the budget or cities.")
@@ -196,13 +177,15 @@ def jev_layer(ids, profile, emit):
 
 
 # ---------------- orchestrator ----------------
-def run_pipeline(dream, form, emit):
+def run_pipeline(dream, form, emit, profile=None):
     t0 = time.time()
-    emit({"type": "start", "health": health(), "data": live.status(), "jev_enabled": J.enabled()})
-    profile = concierge(dream, form, emit)
-    ids = scout(profile, emit)
-    MA.run_all(ids, profile, emit, run_agent)  # 10 metric agents in parallel on Nemotron
-    jev = jev_layer(ids, profile, emit)
+    emit({"type": "start", "health": health(), "data": live.status(), "jev_enabled": J.enabled(), "agents": len(MA.AGENTS)})
+    profile = profile or build_profile(dream, form)
+    profile.setdefault("weights", dict(DEFAULT_WEIGHTS))
+    emit({"type": "profile", "profile": profile})
+    ids = listing_agent(profile, emit)                     # agent 1
+    MA.run_all(ids, profile, emit, run_agent)               # agents 2-6 in parallel on Nemotron
+    jev = jev_layer(ids, profile, emit)                     # JEB: calibrated judgements on vLLM
     rows = T.score_matrix(ids, profile, profile["weights"], jev)
     if DBX.configured():  # governance: audit every AI recommendation in Unity Catalog (non-blocking)
         engine = "jev" if any(v.get("engine") == "jev" for v in jev.values()) else "rules"

@@ -19,9 +19,23 @@ sync:
   exclude:
     - env/**
     - results/**
+    - data/intake/**          # client PII + documents never leave via code sync (they go to the secure volume)
+    - data/listings_cache/**
     - "**/__pycache__/**"
 
 resources:
+  schemas:
+    estatepulse_secure:
+      catalog_name: ${var.catalog}
+      name: estatepulse_secure
+      comment: Client intake (questionnaire answers + financing documents). Restricted - advisors only, never joined into public layers.
+  volumes:
+    client_documents:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.estatepulse_secure.name}
+      name: client_documents
+      volume_type: MANAGED
+      comment: Pre-approval letters and proofs of funds uploaded through the Home Match Toolkit, one folder per intake id.
   jobs:
     estatepulse_elt:
       name: estatepulse-elt

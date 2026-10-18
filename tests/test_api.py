@@ -57,14 +57,43 @@ def test_narrate_reports_error_when_nemotron_down():
 
 def test_agent_registry_endpoint():
     d = client.get("/api/agents").json()
-    assert d["problems"] == [] and len(d["agents"]) == 10
-    assert {a["key"] for a in d["agents"] if a["gym_mode"] == "eval+rl"} == {"forecast", "deal"}
+    assert d["problems"] == [] and len(d["agents"]) == 6 and len(d["metrics"]) == 10
+    assert {a["key"] for a in d["agents"] if a["gym_mode"] == "eval+rl"} == {"budget"}
+    assert {m["key"] for m in d["metrics"] if m["gym_mode"] == "eval+rl"} == {"forecast", "deal"}
 
 
-def test_match_stream_reports_all_ten_metric_agents():
-    r = client.post("/api/match", json={"dream": "condo near downtown", "form": {"max_price": 400000}})
+def test_match_stream_runs_the_six_agents():
+    r = client.post("/api/match", json={"dream": "condo near downtown", "form": {"max_price": 400000, "location": "Raleigh"}})
     events = [json.loads(line) for line in r.text.splitlines() if line.strip()]
-    assert len({e["key"] for e in events if e["type"] == "metric_agent"}) == 10
+    assert len({e["key"] for e in events if e["type"] == "crew_agent"}) == 5     # 5 scoring agents
+    assert any(e["type"] == "shortlist" and e["ids"] for e in events)              # + the Zillow Listing Agent
+    assert next(e for e in events if e["type"] == "start")["agents"] == 6
+
+
+def test_match_with_portal_token_uses_the_questionnaire_profile():
+    from test_intake import ANSWERS
+    d = client.post("/api/intake", json={"answers": ANSWERS}).json()
+    r = client.post("/api/match", json={"portal_token": d["portal_token"]})
+    prof = next(json.loads(x) for x in r.text.splitlines() if '"type": "profile"' in x)["profile"]
+    assert prof["weights"]["safety"] == 5 and prof["location"] == "Cary, 27513"
+    assert client.post("/api/match", json={"portal_token": "bad.1.x"}).status_code == 401
+
+
+def test_zillow_import_endpoint(tmp_path, monkeypatch):
+    from conftest import FIX
+    from app import tools as T
+    from pipeline import listings as PL
+    monkeypatch.setattr(PL, "SAVED_DIR", str(tmp_path))
+    before = set(T.BY_ID)
+    html = open(f"{FIX}/zillow/search_cary.html").read()
+    try:
+        d = client.post("/api/zillow/import", json={"name": "cary.html", "html": html}).json()
+        assert d["parsed"] == 5 and d["added"] == 2 and (tmp_path / "cary.html").exists()
+        assert client.post("/api/zillow/import", json={"name": "x", "html": "<html>px-captcha</html>"}).status_code == 422
+        assert client.get("/api/zillow/search-url", params={"location": "Apex"}).json()["url"].endswith("Apex_rb/")
+    finally:
+        for lid in set(T.BY_ID) - before:
+            T.LISTINGS.remove(T.BY_ID.pop(lid))
 
 
 def test_gym_summary_endpoint_never_fails():
@@ -73,7 +102,8 @@ def test_gym_summary_endpoint_never_fails():
 
 
 def test_pages_are_served():
-    for path, marker in (("/value", "Free home value calculator"), ("/how", "How we score a home"), ("/static/nav.js", "Free value calculator")):
+    for path, marker in (("/value", "Free home value calculator"), ("/how", "How we score a home"), ("/static/nav.js", "Home Match Toolkit"),
+                         ("/start", "SUBMIT &amp; UNLOCK SHOWINGS"), ("/portal", "Home Match Portal")):
         r = client.get(path)
         assert r.status_code == 200 and marker in r.text, path
 

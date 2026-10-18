@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Match Toolkit · EstatePulse AI</title>
+<link rel="stylesheet" href="static/site.css">
+<style>
+.wrap{max-width:860px}
+.hero{text-align:center;padding:10px 0 20px}
+.hero .kicker{font:12px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink)}
+.hero h1{font-size:30px;margin:6px 0}
+.step{margin-bottom:14px}
+.step h2{display:flex;align-items:center;gap:10px;color:var(--ink);font-size:14px}
+.step h2 .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#102000;font:700 12px var(--mono)}
+.opt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:8px 0;cursor:pointer}
+.opt input[type=radio]{width:auto;margin:0}
+.opt.on{border-color:var(--accent);background:var(--chip)}
+.opt .up{margin-left:auto;font-size:12.5px}
+.opt .up input{display:none}
+.opt .up label{display:inline-block;margin:0;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;font-size:12.5px}
+.opt .up label.has{border-color:var(--accent);color:var(--accent-ink)}
+.money{position:relative}.money span{position:absolute;left:10px;top:9px;color:var(--muted)}.money input{padding-left:22px}
+.pq{padding:12px 0;border-top:1px solid var(--line)}.pq:first-of-type{border-top:0}
+.pq .q{font-weight:600}.pq .src{font-size:12px;color:var(--muted);margin:2px 0 8px}
+.scale{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:12px;color:var(--muted)}
+.scale input{padding:0}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.seg label{margin:0;padding:6px 12px;border:1px solid var(--line);border-radius:99px;cursor:pointer;color:var(--ink);font-size:12.5px;background:var(--bg)}
+.seg input{display:none}.seg input:checked+span{font-weight:650}
+.seg label:has(input:checked){background:var(--accent);border-color:var(--accent);color:#102000}
+.submit{width:100%;padding:14px;font-size:16px;letter-spacing:.04em}
+.err{color:var(--warn);margin-top:10px;min-height:1.2em}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+.done{display:none;text-align:center}
+.done .big{color:var(--accent-ink)}
+</style>
+</head>
+<body>
+<script src="static/nav.js"></script>
+<div class="wrap">
+  <div class="hero">
+    <div class="kicker">Welcome to the</div>
+    <h1>Home Match Toolkit</h1>
+    <p class="lede" style="margin:0 auto">Let's make sure we find homes that match your lifestyle <b>and</b> your budget.</p>
+  </div>
+
+  <form id="f" autocomplete="on" novalidate>
+    <div class="card step">
+      <h2><span class="n">0</span>About you</h2>
+      <div class="grid2">
+        <div><label for="name">Full name</label><input id="name" required autocomplete="name"></div>
+        <div><label for="email">Email (we send your portal link here)</label><input id="email" type="email" required autocomplete="email"></div>
+      </div>
+    </div>
+
+    <div class="card step">
+      <h2><span class="n">1</span>Financing status</h2>
+      <div class="opt" data-v="preapproved"><input type="radio" name="financing" value="preapproved"> I am pre-approved by a lender.
+        <span class="up"><input type="file" id="doc_preapproved" accept=".pdf,.png,.jpg,.jpeg"><label for="doc_preapproved">Upload letter</label></span></div>
+      <div class="opt" data-v="cash"><input type="radio" name="financing" value="cash"> I am paying cash.
+        <span class="up"><input type="file" id="doc_cash" accept=".pdf,.png,.jpg,.jpeg"><label for="doc_cash">Upload proof of funds</label></span></div>
+      <div class="opt" data-v="need_lender"><input type="radio" name="financing" value="need_lender"> I need a lender recommendation first.</div>
+      <div class="note">PDF, PNG or JPEG, up to 10 MB. Your document goes to our secure Databricks storage, is only seen by your advisor, and is never shared with sellers.</div>
+    </div>
+
+    <div class="card step">
+      <h2><span class="n">2</span>Verified purchasing power</h2>
+      <div class="grid2">
+        <div><label for="max_price">Max purchase price</label><div class="money"><span>$</span><input id="max_price" type="number" min="50000" step="1000" required></div></div>
+        <div><label for="max_monthly_payment">Desired monthly payment (max)</label><div class="money"><span>$</span><input id="max_monthly_payment" type="number" min="300" step="50"></div></div>
+        <div><label for="down_payment_pct">Down payment %</label><input id="down_payment_pct" type="number" min="0" max="100" value="20"></div>
+      </div>
+    </div>
+
+    <div class="card step">
+      <h2><span class="n">3</span>Must-have parameters</h2>
+      <div class="grid2">
+        <div><label for="min_beds">Min bedrooms</label><input id="min_beds" type="number" min="0" max="10" value="3"></div>
+        <div><label for="min_baths">Min bathrooms</label><input id="min_baths" type="number" min="0" max="10" value="2"></div>
+      </div>
+      <label for="areas">Target neighborhoods / ZIP codes</label>
+      <input id="areas" placeholder="e.g. Cary, 27513, Apex">
+      <label>Must-have features (optional)</label><div class="chips" id="features"></div>
+    </div>
+
+    <div class="card step">
+      <h2><span class="n">4</span>What matters most to you</h2>
+      <div id="priorities"></div>
+    </div>
+
+    <div class="card">
+      <button class="btn submit" id="go" type="submit">SUBMIT &amp; UNLOCK SHOWINGS</button>
+      <div class="err" id="err" role="alert"></div>
+      <div class="note">By submitting you agree that we store your answers and document to match you with homes and arrange showings. Scores are decision support, not financial advice. We follow fair housing law: neighborhood data describes places, never people, and you choose how much each factor counts.</div>
+    </div>
+  </form>
+
+  <div class="card done" id="done">
+    <div class="big">You're in.</div>
+    <p id="done-msg" class="lede" style="margin:8px auto"></p>
+    <a class="btn" id="see" href="./">See my matched homes →</a>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const PQ = [
+  {k:"safety", q:"How important is low crime rate and neighborhood stability?", src:"Police incident data (FBI NIBRS categories), flood zones, air quality and weather risk"},
+  {k:"commute", q:"What is your daily work location and target max commute time?", src:"Google Maps drive times",
+   extra:'<div class="grid2"><div><label for="work_location">Work location</label><input id="work_location" placeholder="e.g. RTP, or an address"></div><div><label for="max_commute_min">Max commute (minutes)</label><input id="max_commute_min" type="number" min="5" max="180" value="35"></div></div>'},
+  {k:"budget", q:"Are you seeking cash flow, appreciation, or below-market value?", src:"FRED mortgage rates and house-price index, county records, Zillow price history",
+   seg:["investment_goal",[["below_market","Below-market value"],["appreciation","Appreciation"],["cash_flow","Cash flow"]]]},
+  {k:"lifestyle", q:"Do you prefer vibrant urban living or suburban space and schools?", src:"GreatSchools ratings, Zillow listing details, walkability",
+   seg:["living_style",[["urban","Vibrant urban"],["balanced","A bit of both"],["suburban","Suburban space & schools"]]]},
+  {k:"property", q:"What is your tolerance for renovation, HOA fees and age of home?", src:"Listing descriptions read by our agents, HOA disclosures",
+   seg:["renovation_tolerance",[["move_in_ready","Move-in ready only"],["light","Light updates are fine"],["fixer","Happy with a fixer-upper"]]],
+   extra:'<div class="grid2"><div><label for="max_hoa">Max HOA ($/month)</label><input id="max_hoa" type="number" min="0" placeholder="no limit"></div></div>'},
+];
+$("priorities").innerHTML = PQ.map(p => `<div class="pq"><div class="q">${p.q}</div><div class="src">${p.src}</div>
+  <div class="scale"><span>not important</span><input type="range" min="0" max="5" value="3" id="p_${p.k}" aria-label="${p.q}"><span><b id="v_${p.k}">3</b>/5</span></div>
+  ${p.seg?`<div class="seg">${p.seg[1].map((o,i)=>`<label><input type="radio" name="${p.seg[0]}" value="${o[0]}" ${i===0?"checked":""}><span>${o[1]}</span></label>`).join("")}</div>`:""}
+  ${p.extra||""}</div>`).join("");
+PQ.forEach(p => $("p_"+p.k).oninput = e => $("v_"+p.k).textContent = e.target.value);
+
+document.querySelectorAll(".opt").forEach(o => o.addEventListener("click", () => {
+  o.querySelector("input[type=radio]").checked = true;
+  document.querySelectorAll(".opt").forEach(x => x.classList.toggle("on", x === o));
+}));
+["preapproved","cash"].forEach(k => $("doc_"+k).onchange = e => {
+  const lab = e.target.nextElementSibling, f = e.target.files[0];
+  lab.textContent = f ? "✓ " + f.name.slice(0,28) : (k==="cash"?"Upload proof of funds":"Upload letter"); lab.classList.toggle("has", !!f);
+});
+fetch("api/meta").then(r => r.json()).then(m => {
+  $("features").innerHTML = m.features.map(f => `<span class="chip">${f}</span>`).join("");
+  $("features").querySelectorAll(".chip").forEach(c => c.onclick = () => c.classList.toggle("on"));
+}).catch(()=>{});
+
+const readFile = f => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result.split(",")[1]); r.onerror = bad; r.readAsDataURL(f); });
+const val = id => { const el = $(id); return el && el.value !== "" ? el.value : null; };
+const radio = n => (document.querySelector(`input[name="${n}"]:checked`) || {}).value;
+
+$("f").onsubmit = async e => {
+  e.preventDefault(); $("err").textContent = "";
+  const financing = radio("financing");
+  if (!financing) { $("err").textContent = "Choose your financing status (step 1)."; return; }
+  const answers = {name: val("name"), email: val("email"), financing,
+    max_price: val("max_price"), max_monthly_payment: val("max_monthly_payment"), down_payment_pct: val("down_payment_pct"),
+    min_beds: val("min_beds"), min_baths: val("min_baths"), areas: val("areas"),
+    priorities: Object.fromEntries(PQ.map(p => [p.k, +$("p_"+p.k).value])),
+    work_location: val("work_location"), max_commute_min: val("max_commute_min"), max_hoa: val("max_hoa"),
+    investment_goal: radio("investment_goal"), living_style: radio("living_style"), renovation_tolerance: radio("renovation_tolerance"),
+    must_have_features: [...document.querySelectorAll("#features .chip.on")].map(c => c.textContent)};
+  let document_ = null;
+  const fileInput = financing !== "need_lender" ? $("doc_"+financing) : null;
+  const file = fileInput && fileInput.files[0];
+  if (file) {
+    if (file.size > 10*1024*1024) { $("err").textContent = "That file is over 10 MB."; return; }
+    document_ = {name: file.name, data: await readFile(file)};
+  }
+  $("go").disabled = true; $("go").textContent = "Submitting…";
+  try {
+    const r = await fetch("api/intake", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({answers, document: document_})});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Something went wrong");
+    try { sessionStorage.setItem("portal_token", d.portal_token); } catch (_) {}
+    $("f").style.display = "none"; $("done").style.display = "block";
+    $("done-msg").textContent = (d.showings_unlocked ? "Showings are unlocked. " : (financing === "need_lender" ? "We'll introduce you to a lender at your kickoff meeting. " : "Upload your document any time to unlock showings. "))
+      + "After your kickoff meeting we'll email you a private sign-in link to your portal.";
+    $("see").href = "./?token=" + encodeURIComponent(d.portal_token);
+  } catch (err) { $("err").textContent = err.message; }
+  $("go").disabled = false; $("go").textContent = "SUBMIT & UNLOCK SHOWINGS";
+};
+</script>
+</body>
+</html>

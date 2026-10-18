@@ -1,4 +1,4 @@
-"""Run the ingestion pipeline: python -m pipeline.run [--strict] [--only fred|police|environment]
+"""Run the ingestion pipeline: python -m pipeline.run [--strict] [--only fred|police|environment|listings]
 
 Fetch -> validate -> transform -> atomically write data/live/*.json.
 A source that fails or breaks its contract keeps its last good snapshot; the manifest records why.
@@ -69,15 +69,24 @@ def run_environment(manifest):
                                           "warnings": problems, "neighborhoods": len(env), "secs": round(time.time() - t0, 2)}
 
 
+def run_listings(manifest):
+    from . import listings
+    t0 = time.time()
+    rows, report = listings.build(os.getenv("LISTINGS_LOCATION"))
+    manifest["sources"]["listings"] = {"status": "ok", "kept": report["kept"], "input": report["input"],
+                                       "dropped": {k: report[k] for k in report if k.startswith("dropped_")},
+                                       "secs": round(time.time() - t0, 2)}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--strict", action="store_true", help="exit 1 if any source fails (for CI)")
-    ap.add_argument("--only", choices=["fred", "police", "environment"])
+    ap.add_argument("--only", choices=["fred", "police", "environment", "listings"])
     ap.add_argument("--no-databricks", action="store_true", help="skip the Unity Catalog sync even if configured")
     args = ap.parse_args(argv)
     manifest = {"run_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "sources": {}}
     failed = False
-    for name, fn in (("fred", run_fred), ("police", run_police), ("environment", run_environment)):
+    for name, fn in (("fred", run_fred), ("police", run_police), ("environment", run_environment), ("listings", run_listings)):
         if args.only and args.only != name:
             continue
         try:
