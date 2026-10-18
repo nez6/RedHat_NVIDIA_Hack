@@ -194,7 +194,7 @@ async function go(){
   try{const d=await fetch("api/data-status").then(r=>r.json());
     $("rate").textContent=`30-yr ${d.mortgage_30y}%`+(d.mortgage_source.as_of?` · FRED ${d.mortgage_source.as_of}`:" · default");
     const p=(d.sources||{}).police||{}; $("police").textContent=d.live_safety_neighborhoods?`police: ${d.live_safety_neighborhoods} areas · ${d.police_lookback_days}d live`:"police: baseline";
-    $("jevchip").textContent=d.jev_enabled?"Jev: live":"Jev: rules fallback";}catch(e){}
+    $("jevchip").textContent=d.jev_enabled?("Jev: "+(d.jev_backend==="vllm"?"vLLM":d.jev_backend)):"Jev: rules fallback";}catch(e){}
   const h=await fetch("api/health").then(r=>r.json());
   $("health").textContent=h.ok?"● "+h.model:"● Nemotron offline (fallback mode)"; $("health").className=h.ok?"":"bad";
 })();

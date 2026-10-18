@@ -270,7 +270,7 @@ docker compose --profile hostnet up -d app-hostnet      # app only, using the vL
 docker compose run --rm pipeline                        # refresh live data (+ Databricks sync if configured)
 ```
 
-Secrets (`TYPESAFE_API_KEY`, `DATABRICKS_*`, `HF_TOKEN`) are read from your shell or a local `.env` file, which is git- and docker-ignored.
+Secrets (`DATABRICKS_*`, optional `TYPESAFE_API_KEY`, `HF_TOKEN`) are read from your shell or a local `.env` file, which is git- and docker-ignored.
 
 
 ## 🧱 Databricks ELT (bronze → silver → gold)
@@ -302,3 +302,29 @@ databricks bundle validate && databricks bundle deploy && databricks bundle run 
 | Free value calculator | `/value` | Estimate a home's value (range + 12-month outlook), monthly cost at the live FRED rate, the asking-price check, and all 10 factor scores. No sign-up. |
 | How we score | `/how` | Pick any listing and see each factor's formula, inputs and score, plus data freshness and the bronze → silver → gold flow. |
 | Architecture | `/architecture` | Judging dashboard: live system status, weights, failure injection, NeMo Gym results, judging criteria. |
+
+
+## ⚡ Jev on vLLM (fast decisions, no external API)
+
+Jev's decision pattern runs on the same vLLM server as the agents (Nemotron 3.5 Lightning 30B-A3B, about 3B active parameters, well under the 33B limit). Each Jev question costs one forward pass:
+
+1. The listing's state (live FRED math, live police safety text, buyer profile) plus one question with lettered options (A–E, or Yes/No) is sent to `/v1/chat/completions` with `max_tokens=1`, `structured_outputs: {"choice": [letters]}`, `logprobs` and `top_logprobs=20`, with thinking off.
+2. vLLM constrains the single output token to the option letters. The app reads the log-probabilities, renormalizes them over the letters, applies `JEV_TEMPERATURE`, and returns a calibrated distribution: an expected 0–100 score, a choice plus confidence, or a yes/no probability.
+3. Every home gets 3 questions (safety, fit, verdict), all fired in parallel. Live on the L40S: 5 homes × 3 questions in about 0.4 s.
+
+The app also exposes this as a Jev-compatible endpoint, so other tools can call it:
+
+```bash
+curl -s localhost:8501/v1/systemone -H 'content-type: application/json' -d '{
+  "state": "3-bed in Cary, $480k, housing ratio 27%, 12 incidents per 1k residents in 90 days",
+  "questions": {"safety": {"type": "score", "instructions": "How safe is this area for a family?", "criteria": ["very unsafe","below average","average","safe","very safe"]},
+                "tour":   {"type": "noul",  "instructions": "Should the buyer tour this home this week?"}}}'
+```
+
+| `JEV_BACKEND` | What runs |
+|---|---|
+| `vllm` (default) | The Jev pattern on your own Nemotron vLLM (`JEV_VLLM_BASE_URL`, defaults to `NEMOTRON_BASE_URL`) |
+| `typesafe` | TypeSafe's hosted Jev (needs `TYPESAFE_API_KEY`; its weights are closed, so it can't be self-hosted) |
+| `off` | Deterministic rule engine only |
+
+If vLLM is unreachable, every decision falls back to the rule engine and the UI labels it "rules fallback". Check it with `env/bin/python scripts/jev_probe.py`.

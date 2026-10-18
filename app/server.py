@@ -151,6 +151,21 @@ def narrate(body: dict):
         return {"error": str(e)[:200], "ms": int((time.time() - t0) * 1000)}
 
 
+@app.post("/v1/systemone")
+def systemone(body: dict):
+    """Jev-compatible decision endpoint (state + typed questions -> probabilistic answers), served by our vLLM."""
+    if not isinstance(body.get("state"), str) or not isinstance(body.get("questions"), dict) or not body["questions"]:
+        raise HTTPException(400, "need 'state' (string) and 'questions' (object)")
+    for k, q in body["questions"].items():
+        if not isinstance(q, dict) or q.get("type") not in ("score", "choice", "noul") or not isinstance(q.get("instructions"), str) \
+                or (q["type"] != "noul" and not isinstance(q.get("criteria"), (list, dict))) or len(q.get("criteria") or []) > 26:
+            raise HTTPException(400, f"question {k}: needs type score/choice/noul, instructions, and criteria (list or object) for score/choice")
+    try:
+        return J.systemone_vllm(body["state"], body["questions"])
+    except Exception as e:
+        raise HTTPException(503, f"vLLM decision engine unavailable: {str(e)[:160]}")
+
+
 @app.get("/api/health")
 def health():
     return agents.health()
@@ -158,7 +173,7 @@ def health():
 
 @app.get("/api/data-status")
 def data_status():
-    return {**live.status(), "jev_enabled": J.enabled()}
+    return {**live.status(), "jev_enabled": J.enabled(), "jev_backend": J.backend()}
 
 
 @app.get("/api/agents")

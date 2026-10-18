@@ -10,7 +10,9 @@ name: estatepulse
 x-app-env: &app-env
   NEMOTRON_BASE_URL: ${NEMOTRON_BASE_URL:-http://vllm:8000/v1}
   NEMOTRON_MODEL: nemotron
-  TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+  JEV_BACKEND: ${JEV_BACKEND:-vllm}          # vllm (default: Jev decisions on the same Nemotron vLLM) | typesafe | off
+  JEV_TEMPERATURE: ${JEV_TEMPERATURE:-1.0}
+  TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}     # only used when JEV_BACKEND=typesafe
   FRED_API_KEY: ${FRED_API_KEY:-}
   DATABRICKS_HOST: ${DATABRICKS_HOST:-}
   DATABRICKS_TOKEN: ${DATABRICKS_TOKEN:-}

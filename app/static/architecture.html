@@ -234,7 +234,7 @@ Promise.all([
   $("n1").classList.toggle("active", okAll);
   $("n2s").textContent = (ds.databricks_configured ? "catalog " + ds.databricks_catalog + " · " : "") + dbx;
   $("n2").classList.toggle("active", !!ds.databricks_last_sync);
-  $("n3s").textContent = ds.jev_enabled ? "Jev live" : "Jev key not set → rule engine";
+  $("n3s").textContent = ds.jev_backend === "vllm" ? "Jev on vLLM (Nemotron logprobs)" : ds.jev_backend === "typesafe" ? "Jev via TypeSafe" : "Jev off → rule engine";
   $("n4s").textContent = h.ok ? "online · " + h.base_url : "offline → agent fallbacks";
   $("n4").classList.toggle("active", !!h.ok);
   $("pipe-run").textContent = ds.run_at ? ds.run_at.replace("T", " ").slice(0, 16) + " UTC" : "never";

@@ -96,3 +96,12 @@ def test_value_calculator_scores_an_unlisted_home_without_leaking_it():
     assert set(T.BY_ID) == before
     assert client.post("/api/value", json={**body, "neighborhood": "Atlantis"}).status_code == 400
     assert client.post("/api/value", json={**body, "sqft": 5}).status_code == 400
+
+
+def test_systemone_endpoint_validates_and_reports_unavailable_vllm():
+    assert client.post("/v1/systemone", json={"state": "x"}).status_code == 400
+    bad = {"state": "x", "questions": {"q": {"type": "essay"}}}
+    assert client.post("/v1/systemone", json=bad).status_code == 400
+    assert client.post("/v1/systemone", json={"state": "x", "questions": {"q": {"type": "noul"}}}).status_code == 400
+    ok = {"state": "x", "questions": {"q": {"type": "noul", "instructions": "yes?"}}}
+    assert client.post("/v1/systemone", json=ok).status_code == 503  # vLLM is unreachable in tests

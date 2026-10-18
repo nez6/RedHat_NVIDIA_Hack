@@ -24,7 +24,8 @@ EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/api/meta', timeout=4)"
 
-ENV NEMOTRON_BASE_URL=http://vllm:8000/v1
+ENV NEMOTRON_BASE_URL=http://vllm:8000/v1 \
+    JEV_BACKEND=vllm
 CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8501"]
 
 # ---- test stage: docker build --target test .  (runs lint + the hermetic suite inside the image)
