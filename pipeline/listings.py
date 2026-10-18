@@ -86,9 +86,76 @@ def _richness(r):
     return SOURCE_RANK.get(r.get("source"), 1) * 100 + sum(v not in (None, "", [], {}) for v in r.values())
 
 
+STATUS_ALIASES = {"ACTIVE": "FOR_SALE", "FOR SALE": "FOR_SALE", "COMING SOON": "FOR_SALE", "COMING_SOON": "FOR_SALE", "NEW": "FOR_SALE",
+                  "PRICE CHANGE": "FOR_SALE", "BACK ON MARKET": "FOR_SALE", "CONTINGENT": "PENDING", "UNDER CONTRACT": "UNDER_CONTRACT",
+                  "RECENTLY SOLD": "SOLD", "CLOSED": "SOLD", "OFF MARKET": "OFF_MARKET", "FOR RENT": "FOR_RENT"}
+TYPE_ALIASES = {"single family": "Single Family", "single-family": "Single Family", "single family residential": "Single Family", "house": "Single Family",
+                "single_family": "Single Family", "townhouse": "Townhouse", "townhome": "Townhouse", "condo": "Condo", "condominium": "Condo",
+                "condo/co-op": "Condo", "apartment": "Condo"}
+
+
+def to_number(v, kind=None):
+    """Messy feed values -> numbers: '$450,000' 450000 · '450K' · '$1.2M' · '2,150 sqft' 2150 · '3 bd' 3 · '2.5 ba' · 'Studio' 0 ·
+    '0.25 acres' · '--', 'N/A', '' -> None. kind='price' scales k/m suffixes."""
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return None if v != v else v  # NaN -> None
+    s = str(v).strip().lower()
+    if not s or s in ("-", "--", "n/a", "na", "null", "none", "unknown", "call", "tbd"):
+        return None
+    if s.startswith("studio"):
+        return 0
+    m = re.search(r"-?\d[\d,]*(?:\.\d+)?", s)
+    if not m:
+        return None
+    x = float(m.group(0).replace(",", ""))
+    tail = s[m.end():m.end() + 9].strip()
+    if kind == "price" and re.match(r"(k\b|thousand)", tail):
+        x *= 1_000
+    elif kind == "price" and re.match(r"(m\b|mm\b|million)", tail):
+        x *= 1_000_000
+    return x
+
+
+def normalize_record(r):
+    """Coerce one raw record from any feed into clean types before the quality rules run (pure, returns a copy)."""
+    r = dict(r)
+    r["price"] = to_number(r.get("price"), "price")
+    for k in ("beds", "baths", "sqft", "year_built", "hoa_monthly", "days_on_market", "lat", "lon", "lot_acres"):
+        r[k] = to_number(r.get(k))
+    lot = str(r.get("lot_size") or "")
+    if r.get("lot_acres") is None and lot:
+        n = to_number(lot)
+        r["lot_acres"] = (round(n / 43560, 3) if "sq" in lot.lower() else n) if n is not None else None
+    if r.get("lon") is not None and r["lon"] > 0 and r.get("lat") and 18 < r["lat"] < 72:
+        r["lon"] = -r["lon"]  # some feeds drop the sign on (US = western) longitudes
+    status = str(r.get("status") or "FOR_SALE").strip().upper().replace("-", " ")
+    r["status"] = STATUS_ALIASES.get(status, status.replace(" ", "_"))
+    ht = str(r.get("home_type") or r.get("property_type") or "").strip()
+    r["home_type"] = TYPE_ALIASES.get(ht.lower(), ht.title() if ht else None)
+    if r.get("address"):
+        r["address"] = re.sub(r"\s+", " ", str(r["address"])).strip().rstrip(",")
+        if r["address"].isupper():
+            r["address"] = r["address"].title()
+    if r.get("zip"):
+        z = re.search(r"\d{5}", str(r["zip"]))
+        r["zip"] = z.group(0) if z else None
+    for k in ("city", "state"):
+        if r.get(k):
+            r[k] = str(r[k]).strip()
+            r[k] = r[k].upper() if k == "state" else (r[k].title() if r[k].isupper() or r[k].islower() else r[k])
+    if r.get("year_built") and not 1700 <= r["year_built"] <= dt.date.today().year + 2:
+        r["year_built"] = None
+    if r.get("hoa_monthly") is not None and r["hoa_monthly"] < 0:
+        r["hoa_monthly"] = None
+    return r
+
+
 def clean(records, hoods=None):
     """Raw records from any source -> (listings in the app's schema, quality report)."""
     hoods = hoods or _hoods()
+    records = [normalize_record(r) for r in records]
     report = {"input": len(records), "dropped_not_for_sale": 0, "dropped_incomplete": 0, "dropped_duplicate": 0,
               "dropped_out_of_area": 0, "kept": 0, "by_source": {}}
     best = {}
@@ -105,8 +172,9 @@ def clean(records, hoods=None):
         key = _addr_key(r) or f"id:{r.get('zpid') or r.get('external_id')}"
         if key in best:
             report["dropped_duplicate"] += 1
-            if _richness(r) <= _richness(best[key]):
-                continue
+            keep, other = (best[key], r) if _richness(r) <= _richness(best[key]) else (r, best[key])
+            best[key] = {**keep, **{k: v for k, v in other.items() if keep.get(k) in (None, "", [], {}) and v not in (None, "", [], {})}}
+            continue  # richer record wins; its gaps are filled from the duplicate
         best[key] = r
     out = []
     year = dt.date.today().year

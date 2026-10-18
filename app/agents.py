@@ -14,7 +14,7 @@ from openai import OpenAI
 
 from pipeline import databricks_sink as DBX
 
-from . import jev as J, live, metric_agents as MA, metrics as M, tools as T
+from . import extract as X, jev as J, live, metric_agents as MA, metrics as M, tools as T
 
 BASE_URL = os.getenv("NEMOTRON_BASE_URL", "http://localhost:8000/v1")
 API_KEY = os.getenv("NEMOTRON_API_KEY", "EMPTY")
@@ -92,10 +92,18 @@ def run_agent(name, system, user, tool_names, emit, max_steps=6, capture=None):
 DEFAULT_WEIGHTS = dict(M.DEFAULT_WEIGHTS)
 
 
-def build_profile(dream, form):
-    """Free-text page / form values -> profile (the questionnaire path builds it in app/intake.py instead)."""
+def _extract_chat(messages, tools=None, tool_choice="auto"):
+    return _chat(messages, tools=tools, tool_choice=tool_choice, max_tokens=300)
+
+
+def build_profile(dream, form, use_llm=True):
+    """Free-text request + form values -> profile (the questionnaire path builds it in app/intake.py instead).
+    Filters stated in the text (budget, beds, area, commute...) are extracted (app/extract.py); form fields win."""
     weights = dict(DEFAULT_WEIGHTS)
-    profile = {k: v for k, v in (form or {}).items() if v not in (None, "", []) and k != "weights"}
+    extracted, sources = X.extract(dream, chat=_extract_chat if use_llm else None) if (dream or "").strip() else ({}, {})
+    profile = {**extracted, **{k: v for k, v in (form or {}).items() if v not in (None, "", []) and k != "weights"}}
+    if sources:
+        profile["extracted"] = {k: src for k, src in sources.items() if (form or {}).get(k) in (None, "", [])}
     weights.update((form or {}).get("weights") or {})
     if profile.get("cities") and not profile.get("location"):
         profile["location"] = ", ".join(profile["cities"])
@@ -103,8 +111,18 @@ def build_profile(dream, form):
     return profile
 
 
+def meets_must_haves(r, filt):
+    """Hard constraints a home must satisfy to be shown (5% price stretch, same as search_listings)."""
+    full = T.BY_ID.get(r["id"], r)
+    return not ((filt.get("max_price") and full["price"] > filt["max_price"] * 1.05)
+                or (filt.get("min_beds") and full["beds"] < filt["min_beds"])
+                or (filt.get("min_baths") and full["baths"] < filt["min_baths"]))
+
+
 def listing_agent(profile, emit):
-    """Zillow Listing Agent: find_listings for the buyer's area; deterministic top-up if the model under-delivers."""
+    """Zillow Listing Agent: find_listings for the buyer's area. Every candidate is checked against the buyer's
+    must-haves (price, beds, baths) whatever the model passed to the tool; the area may be widened (and says so)
+    but the must-haves never are. Zero matches -> an empty shortlist, never made-up or off-criteria homes."""
     agent = MA.BY_KEY["listing"]
     filt = {k: profile.get(k) for k in ("location", "max_price", "min_beds", "min_baths", "property_types", "must_have_features")}
     found, feed = {}, {}
@@ -119,18 +137,59 @@ def listing_agent(profile, emit):
             emit({"type": "say", "agent": agent.name, "text": text})
     except Exception as e:
         emit({"type": "fallback", "agent": agent.name, "reason": str(e)[:160]})
-    if len(found) < 6:  # deterministic safety net
+    if len(found) < 6:  # deterministic safety net: the same tool with the buyer's exact filters
         out = T.find_listings(**{k: v for k, v in filt.items() if v not in (None, [], "")}, limit=15)
         feed = feed or {k: v for k, v in out.items() if k != "listings"}
         for r in out["listings"]:
             found.setdefault(r["id"], r)
-        if len(found) < 6:
-            for r in T.search_listings(max_price=filt.get("max_price"), limit=15):
-                found.setdefault(r["id"], r)
-        emit({"type": "fallback", "agent": agent.name, "reason": f"topped up to {len(found)} candidates"})
+        emit({"type": "fallback", "agent": agent.name, "reason": f"ran find_listings with the buyer's filters: {len(found)} candidates"})
+    bad = [i for i, r in found.items() if not meets_must_haves(r, filt)]
+    for i in bad:
+        found.pop(i)
+    if bad:
+        emit({"type": "fallback", "agent": agent.name, "reason": f"dropped {len(bad)} home(s) that broke the buyer's must-haves"})
     ids = list(found)[:12]
     emit({"type": "shortlist", "ids": ids, "feed": feed, "sources": sorted({r.get("source") or "unknown" for r in found.values()})})
     return ids
+
+
+def relax_suggestions(profile):
+    """What would produce matches: computed from the listings we actually have (no guessing)."""
+    f = {k: profile.get(k) for k in ("location", "max_price", "min_beds", "min_baths")}
+    tips, data = [], {}
+    pool = [r for r in T.LISTINGS if not f.get("location") or T._in_area(r, f["location"])]
+    ok_rooms = [r for r in pool if r["beds"] >= (f.get("min_beds") or 0) and r["baths"] >= (f.get("min_baths") or 0)]
+    if f.get("max_price") and ok_rooms:
+        p = min(r["price"] for r in ok_rooms)
+        data["min_price_needed"] = p
+        tips.append(f"raise the budget to about ${p:,} (the lowest-priced home with {f.get('min_beds') or 'any'}+ beds"
+                    + (f" in {f['location']}" if f.get("location") else "") + ")")
+    within = [r for r in pool if not f.get("max_price") or r["price"] <= f["max_price"] * 1.05]
+    if f.get("min_beds") and within:
+        b = max(r["beds"] for r in within)
+        if b < f["min_beds"]:
+            data["max_beds_in_budget"] = b
+            tips.append(f"consider {b} bedroom{'s' if b != 1 else ''} (the most available within budget)")
+    if f.get("location"):
+        anywhere = [r for r in T.LISTINGS if meets_must_haves(r, f)]
+        data["matches_without_area"] = len(anywhere)
+        if anywhere:
+            tips.append(f"widen the area: {len(anywhere)} home(s) across the Triangle meet the budget and room count")
+    if not tips:
+        tips.append("loosen one must-have (budget, bedrooms or area)")
+    return tips, data
+
+
+def no_match_message(profile, tips):
+    want = []
+    if profile.get("min_beds"):
+        want.append(f"{profile['min_beds']}+ bedroom")
+    want.append("homes")
+    if profile.get("max_price"):
+        want.append(f"under ${profile['max_price']:,}")
+    if profile.get("location"):
+        want.append(f"in {profile['location']}")
+    return f"I couldn't find any {' '.join(want)} in the current listings. Would you like to " + "; or ".join(tips) + "?"
 
 
 def matchmaker(rows, profile, emit):
@@ -142,6 +201,11 @@ def matchmaker(rows, profile, emit):
               "recommendation: 1 short paragraph on the #1 home (cite 2-3 scores exactly as given, and mention the live mortgage rate), then one line each for #2 and #3 "
               "on the trade-off vs #1. Under 140 words. Plain text, no markdown headers.")
     user = f"Dream: {profile.get('summary')}\nWeights: {profile['weights']}\nTop 3: {json.dumps(top)}"
+    t = top[0] if top else None
+    fallback = (f"#1 is {t['address']} in {t['neighborhood']} (fit {t['total']}), about ${t['monthly']:,}/mo." if t
+                else "No homes matched — try widening the budget or cities.")
+    if not top:  # nothing to recommend: never ask the model to narrate an empty list (that is how fake houses appear)
+        return fallback
     try:
         t0 = time.time()
         resp = _chat([{"role": "system", "content": system}, {"role": "user", "content": user}], max_tokens=400)
@@ -149,10 +213,24 @@ def matchmaker(rows, profile, emit):
         emit({"type": "llm", "agent": "JEB Recommendation", "ms": int((time.time() - t0) * 1000), "tool_calls": []})
     except Exception as e:
         emit({"type": "fallback", "agent": "JEB Recommendation", "reason": str(e)[:160]})
-        t = top[0] if top else None
-        text = (f"#1 is {t['address']} in {t['neighborhood']} (fit {t['total']}), about ${t['monthly']:,}/mo." if t
-                else "No homes matched — try widening the budget or cities.")
+        return fallback
+    stray = unknown_addresses(text, [r["listing"]["address"] for r in rows])
+    if stray or not text:
+        emit({"type": "fallback", "agent": "JEB Recommendation",
+              "reason": f"narration mentioned a home that isn't in the results ({stray[0]})" if stray else "empty narration"})
+        return fallback
     return text
+
+
+_ADDR = re.compile(r"\b\d{2,6}\s+(?:[A-Z][\w'.-]*\s+){1,4}(?:St|Street|Dr|Drive|Rd|Road|Ave|Avenue|Ln|Lane|Ct|Court|Way|Pl|Place|Cir|Circle|"
+                   r"Blvd|Boulevard|Trl|Trail|Pkwy|Parkway|Loop|Ter|Terrace|Run|Row|Sq|Square)\b")
+
+
+def unknown_addresses(text, known):
+    """Street addresses in the model's text that don't belong to any home in the results (hallucination check)."""
+    norm = lambda a: re.sub(r"[^a-z0-9]", "", a.lower())  # noqa: E731
+    keys = [norm(k) for k in known]
+    return [m.group(0) for m in _ADDR.finditer(text or "") if not any(norm(m.group(0)) in k or k in norm(m.group(0)) for k in keys)]
 
 
 def jev_layer(ids, profile, emit):
@@ -184,6 +262,14 @@ def run_pipeline(dream, form, emit, profile=None):
     profile.setdefault("weights", dict(DEFAULT_WEIGHTS))
     emit({"type": "profile", "profile": profile})
     ids = listing_agent(profile, emit)                     # agent 1
+    if not ids:  # nothing meets the must-haves: say so and suggest what to relax, instead of scoring off-criteria homes
+        tips, data = relax_suggestions(profile)
+        msg = no_match_message(profile, tips)
+        emit({"type": "no_match", "suggestions": tips, "data": data, "text": msg})
+        emit({"type": "matrix", "criteria": T.CRITERIA, "rows": [], "weights": profile["weights"], "jev": {}})
+        emit({"type": "recommendation", "text": msg})
+        emit({"type": "done", "ms": int((time.time() - t0) * 1000)})
+        return
     MA.run_all(ids, profile, emit, run_agent)               # agents 2-6 in parallel on Nemotron
     jev = jev_layer(ids, profile, emit)                     # JEB: calibrated judgements on vLLM
     rows = T.score_matrix(ids, profile, profile["weights"], jev)

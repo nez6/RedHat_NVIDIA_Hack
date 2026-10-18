@@ -1,0 +1,723 @@
+{
+ "summary": {
+  "model": "nemotron",
+  "nemotron_ok": true,
+  "at": "2026-10-18T10:11:57Z",
+  "extraction": {
+   "llm": {
+    "precision": 0.894,
+    "recall": 0.977,
+    "exact_match": 0.75,
+    "cases": 12
+   },
+   "rules": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "exact_match": 1.0,
+    "cases": 12
+   },
+   "merged": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "exact_match": 1.0,
+    "cases": 12
+   }
+  },
+  "empty_data": {
+   "passed": 3,
+   "cases": 3
+  },
+  "pipeline": {
+   "cases": 3,
+   "listing_agent_called_tool": 3,
+   "shortlist_real_and_within_must_haves": 3,
+   "matrix_complete": 3,
+   "recommendation_grounded": 3,
+   "recommendation_from_model": 3,
+   "scoring_agents_done": 15,
+   "scoring_agents_total": 15
+  }
+ },
+ "detail": {
+  "extraction": [
+   {
+    "prompt": "Show me 3-bedroom houses under 450k in Durham",
+    "expected": {
+     "max_price": 450000,
+     "min_beds": 3,
+     "location": "Durham"
+    },
+    "llm": {
+     "location": "Durham",
+     "max_price": 450000,
+     "min_beds": 3
+    },
+    "rules": {
+     "location": "Durham",
+     "max_price": 450000,
+     "min_beds": 3
+    },
+    "merged": {
+     "location": "Durham",
+     "max_price": 450000,
+     "min_beds": 3
+    },
+    "llm_ms": 498,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 3,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 3,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 3,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "Looking for a cheap 2 bed place max $350,000",
+    "expected": {
+     "max_price": 350000,
+     "min_beds": 2
+    },
+    "llm": {
+     "max_price": 350000,
+     "min_beds": 2
+    },
+    "rules": {
+     "max_price": 350000,
+     "min_beds": 2
+    },
+    "merged": {
+     "max_price": 350000,
+     "min_beds": 2
+    },
+    "llm_ms": 401,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 2,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 2,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 2,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "Family of four working at RTP, safe area, great schools, fenced yard, home office, ~$550k, income $165k",
+    "expected": {
+     "max_price": 550000,
+     "commute_destination": "rtp",
+     "annual_income": 165000,
+     "must_have_features": [
+      "fenced yard",
+      "home office"
+     ]
+    },
+    "llm": {
+     "location": "safe area with great schools",
+     "max_price": 550000,
+     "min_beds": 3,
+     "min_baths": 2.0,
+     "commute_destination": "rtp",
+     "annual_income": 165000,
+     "must_have_features": [
+      "fenced yard",
+      "home office"
+     ]
+    },
+    "rules": {
+     "max_price": 550000,
+     "commute_destination": "rtp",
+     "annual_income": 165000,
+     "must_have_features": [
+      "fenced yard",
+      "home office"
+     ]
+    },
+    "merged": {
+     "max_price": 550000,
+     "commute_destination": "rtp",
+     "annual_income": 165000,
+     "must_have_features": [
+      "fenced yard",
+      "home office"
+     ]
+    },
+    "llm_ms": 974,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 4,
+     "fp": 3,
+     "fn": 0,
+     "exact": false
+    },
+    "rules_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "Townhome in Cary 27513 between $400,000 and $475,000, 3 beds 2.5 baths, under 25 min commute to downtown Raleigh, payment under $2,800/mo",
+    "expected": {
+     "location": "Cary, 27513",
+     "max_price": 475000,
+     "min_beds": 3,
+     "min_baths": 2.5,
+     "max_commute_min": 25,
+     "commute_destination": "downtown raleigh",
+     "max_monthly_payment": 2800,
+     "property_types": [
+      "Townhouse"
+     ]
+    },
+    "llm": {
+     "location": "Cary 27513",
+     "max_price": 475000,
+     "min_beds": 3,
+     "min_baths": 2.5,
+     "max_commute_min": 25,
+     "commute_destination": "downtown raleigh",
+     "max_monthly_payment": 2800,
+     "property_types": [
+      "Townhouse"
+     ]
+    },
+    "rules": {
+     "location": "Cary, 27513",
+     "max_price": 475000,
+     "min_beds": 3,
+     "min_baths": 2.5,
+     "max_commute_min": 25,
+     "commute_destination": "downtown raleigh",
+     "max_monthly_payment": 2800,
+     "property_types": [
+      "Townhouse"
+     ]
+    },
+    "merged": {
+     "location": "Cary, 27513",
+     "max_price": 475000,
+     "min_beds": 3,
+     "min_baths": 2.5,
+     "max_commute_min": 25,
+     "commute_destination": "downtown raleigh",
+     "max_monthly_payment": 2800,
+     "property_types": [
+      "Townhouse"
+     ]
+    },
+    "llm_ms": 1051,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 7,
+     "fp": 1,
+     "fn": 1,
+     "exact": false
+    },
+    "rules_score": {
+     "tp": 8,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 8,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "two bedroom condo near Duke, budget 1.2M",
+    "expected": {
+     "max_price": 1200000,
+     "min_beds": 2,
+     "commute_destination": "duke",
+     "property_types": [
+      "Condo"
+     ]
+    },
+    "llm": {
+     "location": "Durham",
+     "max_price": 1200000,
+     "min_beds": 2,
+     "commute_destination": "duke",
+     "property_types": [
+      "Condo"
+     ]
+    },
+    "rules": {
+     "max_price": 1200000,
+     "min_beds": 2,
+     "commute_destination": "duke",
+     "property_types": [
+      "Condo"
+     ]
+    },
+    "merged": {
+     "max_price": 1200000,
+     "min_beds": 2,
+     "commute_destination": "duke",
+     "property_types": [
+      "Condo"
+     ]
+    },
+    "llm_ms": 680,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 4,
+     "fp": 1,
+     "fn": 0,
+     "exact": false
+    },
+    "rules_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "Need 4br in Austin, TX up to $600k, 20% down",
+    "expected": {
+     "location": "Austin, TX",
+     "max_price": 600000,
+     "min_beds": 4
+    },
+    "llm": {
+     "location": "Austin, TX",
+     "max_price": 600000,
+     "min_beds": 4
+    },
+    "rules": {
+     "location": "Austin, TX",
+     "max_price": 600000,
+     "min_beds": 4
+    },
+    "merged": {
+     "location": "Austin, TX",
+     "max_price": 600000,
+     "min_beds": 4
+    },
+    "llm_ms": 485,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 3,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 3,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 3,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "house in Apex or Holly Springs with a garage and pool, max 700k, we make 210k a year",
+    "expected": {
+     "location": "Apex, Holly Springs",
+     "max_price": 700000,
+     "annual_income": 210000,
+     "must_have_features": [
+      "garage",
+      "pool"
+     ]
+    },
+    "llm": {
+     "location": "Apex, Holly Springs",
+     "max_price": 700000,
+     "annual_income": 210000,
+     "must_have_features": [
+      "garage",
+      "pool"
+     ]
+    },
+    "rules": {
+     "location": "Apex, Holly Springs",
+     "max_price": 700000,
+     "annual_income": 210000,
+     "must_have_features": [
+      "garage",
+      "pool"
+     ]
+    },
+    "merged": {
+     "location": "Apex, Holly Springs",
+     "max_price": 700000,
+     "annual_income": 210000,
+     "must_have_features": [
+      "garage",
+      "pool"
+     ]
+    },
+    "llm_ms": 669,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "commute to downtown Durham under 30 minutes, 3 bed, $500k",
+    "expected": {
+     "max_price": 500000,
+     "min_beds": 3,
+     "max_commute_min": 30,
+     "commute_destination": "downtown durham"
+    },
+    "llm": {
+     "max_price": 500000,
+     "min_beds": 3,
+     "max_commute_min": 30,
+     "commute_destination": "downtown durham"
+    },
+    "rules": {
+     "max_price": 500000,
+     "min_beds": 3,
+     "max_commute_min": 30,
+     "commute_destination": "downtown durham"
+    },
+    "merged": {
+     "max_price": 500000,
+     "min_beds": 3,
+     "max_commute_min": 30,
+     "commute_destination": "downtown durham"
+    },
+    "llm_ms": 624,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "anything in 27705 under $300k",
+    "expected": {
+     "location": "27705",
+     "max_price": 300000
+    },
+    "llm": {
+     "location": "27705",
+     "max_price": 300000
+    },
+    "rules": {
+     "location": "27705",
+     "max_price": 300000
+    },
+    "merged": {
+     "location": "27705",
+     "max_price": 300000
+    },
+    "llm_ms": 407,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 2,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 2,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 2,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "I want a 3br/2ba in Five Points around 600 thousand",
+    "expected": {
+     "location": "Five Points",
+     "max_price": 600000,
+     "min_beds": 3,
+     "min_baths": 2.0
+    },
+    "llm": {
+     "location": "Five Points",
+     "max_price": 600000,
+     "min_beds": 3,
+     "min_baths": 2.0
+    },
+    "rules": {
+     "location": "Five Points",
+     "max_price": 600000,
+     "min_beds": 3,
+     "min_baths": 2.0
+    },
+    "merged": {
+     "location": "Five Points",
+     "max_price": 600000,
+     "min_beds": 3,
+     "min_baths": 2.0
+    },
+    "llm_ms": 573,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 4,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "Quiet street, good schools, lots of trees. We're flexible on everything else.",
+    "expected": {},
+    "llm": {},
+    "rules": {},
+    "merged": {},
+    "llm_ms": 378,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 0,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 0,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 0,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   },
+   {
+    "prompt": "Retired couple, 2 bedrooms 2 baths, Chapel Hill, $425k max, want a first-floor primary",
+    "expected": {
+     "location": "Chapel Hill",
+     "max_price": 425000,
+     "min_beds": 2,
+     "min_baths": 2.0,
+     "must_have_features": [
+      "first-floor primary"
+     ]
+    },
+    "llm": {
+     "location": "Chapel Hill",
+     "max_price": 425000,
+     "min_beds": 2,
+     "min_baths": 2.0,
+     "must_have_features": [
+      "first-floor primary"
+     ]
+    },
+    "rules": {
+     "location": "Chapel Hill",
+     "max_price": 425000,
+     "min_beds": 2,
+     "min_baths": 2.0,
+     "must_have_features": [
+      "first-floor primary"
+     ]
+    },
+    "merged": {
+     "location": "Chapel Hill",
+     "max_price": 425000,
+     "min_beds": 2,
+     "min_baths": 2.0,
+     "must_have_features": [
+      "first-floor primary"
+     ]
+    },
+    "llm_ms": 704,
+    "llm_error": null,
+    "llm_score": {
+     "tp": 5,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "rules_score": {
+     "tp": 5,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    },
+    "merged_score": {
+     "tp": 5,
+     "fp": 0,
+     "fn": 0,
+     "exact": true
+    }
+   }
+  ],
+  "empty_data": [
+   {
+    "prompt": "4 bedroom house under $150k in Durham",
+    "pass": true,
+    "recommendation": "I couldn't find any 4+ bedroom homes under $150,000 in Durham in the current listings. Would you like to raise the budget to about $341,000 (the lowest-priced home with 4+ beds in Durham); or consider 1 bedroom (the most available within budget)?",
+    "secs": 2.0
+   },
+   {
+    "prompt": "6 bed 5 bath in Five Points under $300,000",
+    "pass": true,
+    "recommendation": "I couldn't find any 6+ bedroom homes under $300,000 in Five Points in the current listings. Would you like to loosen one must-have (budget, bedrooms or area)?",
+    "secs": 2.5
+   },
+   {
+    "prompt": "10 bedrooms in Cary max $400k",
+    "pass": true,
+    "recommendation": "I couldn't find any 10+ bedroom homes under $400,000 in Cary in the current listings. Would you like to consider 3 bedrooms (the most available within budget)?",
+    "secs": 2.2
+   }
+  ],
+  "pipeline": [
+   {
+    "prompt": "Family of four working at RTP, safe area, great schools, fenced yard, home office, ~$550k, income $165k",
+    "checks": {
+     "listing_agent_called_tool": true,
+     "scoring_agents_on_nemotron": "5/5",
+     "shortlist_real_and_within_must_haves": true,
+     "matrix_complete": true,
+     "recommendation_grounded": true,
+     "recommendation_from_model": true
+    },
+    "extracted": {
+     "max_price": "rules",
+     "commute_destination": "rules",
+     "annual_income": "rules",
+     "must_have_features": "rules"
+    },
+    "listing_fallbacks": [],
+    "secs": 7.6,
+    "recommendation": "The #1 choice at 9714 Maple Ln earns 73.2 total, driven by a 76 safety score and 77 deal score that align with your family\u2019s priorities, and at $3,165/month with the current 7.4% live mortgage rate it fits your $550k budget perfectly. 5331 Glenwood Dr trails at 72.4 with a stellar 95 safety score but sacrifices 13 lifestyle points and a longer commute, while 2741 Wade Way ties at 72.3 with the best 100 deal score but drops to a 52 urban score and 28 commute, trading convenience for savings."
+   },
+   {
+    "prompt": "3 bed 2 bath under $500k in Raleigh, commute to downtown Raleigh under 25 minutes",
+    "checks": {
+     "listing_agent_called_tool": true,
+     "scoring_agents_on_nemotron": "5/5",
+     "shortlist_real_and_within_must_haves": true,
+     "matrix_complete": true,
+     "recommendation_grounded": true,
+     "recommendation_from_model": true
+    },
+    "extracted": {
+     "location": "rules",
+     "max_price": "rules",
+     "min_beds": "rules",
+     "min_baths": "rules",
+     "max_commute_min": "rules",
+     "commute_destination": "rules"
+    },
+    "listing_fallbacks": [],
+    "secs": 7.0,
+    "recommendation": "The #1 pick is 1244 Glenwood St in Five Points. It scores 49 on lifestyle, 80 on school, and 56 on safety, and its 100 commute score perfectly matches your under-25-minute goal. At $477k with a 7.4% live mortgage rate, the monthly payment is $3,264\u2014well under your $500k ceiling. Compared to #2 Oakwood\u2019s Holly Ln, you trade a lower deal score (59 vs 80) and higher monthly cost ($3,264 vs $2,826) for better safety (56 vs 38) and a stronger neighborhood fit. Versus #3 Oakwood\u2019s Oak Ave, you sacrifice rooms (58 vs 77) and pay $133 more monthly for a slightly lower total score."
+   },
+   {
+    "prompt": "Townhome in Cary under $475,000 with 3 beds",
+    "checks": {
+     "listing_agent_called_tool": true,
+     "scoring_agents_on_nemotron": "5/5",
+     "shortlist_real_and_within_must_haves": true,
+     "matrix_complete": true,
+     "recommendation_grounded": true,
+     "recommendation_from_model": true
+    },
+    "extracted": {
+     "location": "rules",
+     "max_price": "rules",
+     "min_beds": "rules",
+     "property_types": "rules"
+    },
+    "listing_fallbacks": [
+     "ran find_listings with the buyer's filters: 5 candidates"
+    ],
+    "secs": 7.0,
+    "recommendation": "The top pick at 513 Laurel Ave in Garner edges out the others with a 69.1 total score, driven by its exceptional 85 commute and strong 77 safety rating, while the 7.4% live mortgage rate keeps the $2,776 monthly payment comfortably under your $475k ceiling. The Holly Springs option at 2263 Poplar Ave trades slightly lower total points for a better school score of 80 and a lower $2,651 payment, but its 42 commute is a significant drawback. The Oakwood property at 4719 Oak Ave boasts the best urban score of 90 and rooms at 77, yet its $497k price and 38 safety score fall outside your dream criteria."
+   }
+  ]
+ }
+}

@@ -59,7 +59,7 @@ jobs:
         run: |
           docker run -d --name ep -p 8501:8501 -e NEMOTRON_BASE_URL=http://127.0.0.1:9/v1 -e NEMOTRON_MAX_RETRIES=0 estatepulse-app
           for i in $(seq 1 30); do curl -sf localhost:8501/api/meta && break; sleep 1; done
-          curl -sf localhost:8501/api/agents | python -c "import json,sys; d=json.load(sys.stdin); assert d['problems']==[] and len(d['agents'])==10"
+          curl -sf localhost:8501/api/agents | python -c "import json,sys; d=json.load(sys.stdin); assert d['problems']==[] and len(d['agents'])==6"
           test "$(docker inspect -f '{{.State.Health.Status}}' ep)" != "unhealthy"
       - name: Validate compose file
         run: docker compose --profile gpu --profile jobs config -q

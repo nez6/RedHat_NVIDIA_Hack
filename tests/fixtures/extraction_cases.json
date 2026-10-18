@@ -1,0 +1,18 @@
+[
+ {"prompt": "Show me 3-bedroom houses under 450k in Durham", "expected": {"max_price": 450000, "min_beds": 3, "location": "Durham"}},
+ {"prompt": "Looking for a cheap 2 bed place max $350,000", "expected": {"max_price": 350000, "min_beds": 2}},
+ {"prompt": "Family of four working at RTP, safe area, great schools, fenced yard, home office, ~$550k, income $165k",
+  "expected": {"max_price": 550000, "commute_destination": "rtp", "annual_income": 165000, "must_have_features": ["fenced yard", "home office"]}},
+ {"prompt": "Townhome in Cary 27513 between $400,000 and $475,000, 3 beds 2.5 baths, under 25 min commute to downtown Raleigh, payment under $2,800/mo",
+  "expected": {"location": "Cary, 27513", "max_price": 475000, "min_beds": 3, "min_baths": 2.5, "max_commute_min": 25,
+               "commute_destination": "downtown raleigh", "max_monthly_payment": 2800, "property_types": ["Townhouse"]}},
+ {"prompt": "two bedroom condo near Duke, budget 1.2M", "expected": {"max_price": 1200000, "min_beds": 2, "commute_destination": "duke", "property_types": ["Condo"]}},
+ {"prompt": "Need 4br in Austin, TX up to $600k, 20% down", "expected": {"location": "Austin, TX", "max_price": 600000, "min_beds": 4}},
+ {"prompt": "house in Apex or Holly Springs with a garage and pool, max 700k, we make 210k a year",
+  "expected": {"location": "Apex, Holly Springs", "max_price": 700000, "annual_income": 210000, "must_have_features": ["garage", "pool"]}},
+ {"prompt": "commute to downtown Durham under 30 minutes, 3 bed, $500k", "expected": {"max_price": 500000, "min_beds": 3, "max_commute_min": 30, "commute_destination": "downtown durham"}},
+ {"prompt": "anything in 27705 under $300k", "expected": {"location": "27705", "max_price": 300000}},
+ {"prompt": "I want a 3br/2ba in Five Points around 600 thousand", "expected": {"location": "Five Points", "max_price": 600000, "min_beds": 3, "min_baths": 2.0}},
+ {"prompt": "Quiet street, good schools, lots of trees. We're flexible on everything else.", "expected": {}},
+ {"prompt": "Retired couple, 2 bedrooms 2 baths, Chapel Hill, $425k max, want a first-floor primary", "expected": {"location": "Chapel Hill", "max_price": 425000, "min_beds": 2, "min_baths": 2.0, "must_have_features": ["first-floor primary"]}}
+]
