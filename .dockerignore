@@ -1,0 +1,14 @@
+.git
+.github
+env/
+.venv/
+**/__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.log
+_out.txt
+match.ndjson
+results/
+untitled.py
+.env
+*.tmp

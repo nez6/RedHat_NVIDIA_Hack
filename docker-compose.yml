@@ -1,0 +1,89 @@
+# EstatePulse AI — full stack
+#   docker compose --profile gpu up -d        vLLM (Nemotron 3.5 Lightning) + app
+#   docker compose up -d app                  app only (bridge network), vLLM at $NEMOTRON_BASE_URL
+#   docker compose --profile hostnet up -d app-hostnet
+#                                             app on the host network, talking to a vLLM already running on the host
+#                                             (use this on Brev: its firewall blocks bridge -> host traffic)
+#   docker compose run --rm pipeline          one ingestion run (FRED, police, FEMA, Open-Meteo -> data/live, Databricks if configured)
+name: estatepulse
+
+x-app-env: &app-env
+  NEMOTRON_BASE_URL: ${NEMOTRON_BASE_URL:-http://vllm:8000/v1}
+  NEMOTRON_MODEL: nemotron
+  TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+  FRED_API_KEY: ${FRED_API_KEY:-}
+  DATABRICKS_HOST: ${DATABRICKS_HOST:-}
+  DATABRICKS_TOKEN: ${DATABRICKS_TOKEN:-}
+  DATABRICKS_WAREHOUSE_ID: ${DATABRICKS_WAREHOUSE_ID:-}
+  DATABRICKS_CATALOG: ${DATABRICKS_CATALOG:-workspace}
+
+services:
+  vllm:
+    profiles: ["gpu"]
+    image: vllm/vllm-openai:v0.31.0
+    command:
+      - nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16
+      - --served-model-name=nemotron
+      - --quantization=fp8
+      - --max-model-len=32768
+      - --max-num-seqs=32
+      - --gpu-memory-utilization=0.92
+      - --enable-prefix-caching
+      - --trust-remote-code
+      - --reasoning-parser=nemotron_v3
+      - --tool-call-parser=qwen3_coder
+      - --enable-auto-tool-choice
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      VLLM_USE_FLASHINFER_SAMPLER: "0"
+    volumes:
+      - ${HF_CACHE:-~/.cache/huggingface}:/root/.cache/huggingface   # reuse already-downloaded weights
+    ports: ["8000:8000"]
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/models', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 60          # first start downloads + compiles; allow ~15 min
+      start_period: 120s
+    restart: unless-stopped
+
+  app:
+    build: .
+    image: estatepulse-app:latest
+    environment: *app-env
+    ports: ["8501:8501"]
+    volumes:
+      - ./data/live:/app/data/live
+      - ./results:/app/results:ro
+    restart: unless-stopped
+
+  app-hostnet:
+    profiles: ["hostnet"]
+    image: estatepulse-app:latest
+    build: .
+    network_mode: host
+    command: ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "${APP_PORT:-8501}"]
+    environment:
+      <<: *app-env
+      NEMOTRON_BASE_URL: ${NEMOTRON_BASE_URL:-http://127.0.0.1:8000/v1}
+    volumes:
+      - ./data/live:/app/data/live
+      - ./results:/app/results:ro
+    restart: unless-stopped
+
+  pipeline:
+    profiles: ["jobs"]
+    image: estatepulse-app:latest
+    build: .
+    command: ["python", "-m", "pipeline.run"]
+    environment: *app-env
+    volumes:
+      - ./data/live:/app/data/live

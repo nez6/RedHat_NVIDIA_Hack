@@ -9,3 +9,4 @@ _out.txt
 match.ndjson
 untitled.py
 .env
+_*.txt

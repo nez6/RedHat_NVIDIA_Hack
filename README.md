@@ -243,3 +243,31 @@ task) for the **Value/Forecast** and **Deal Calculator** agents. Results land in
 | Reliability | Hermetic test suite + live smoke tests in GitHub Actions, failure-injection demo | `tests/`, `.github/workflows/` |
 | Real data | FRED, Raleigh PD, Cary PD, FEMA NFHL, Open-Meteo (listings are still sample data) | `data/live/` |
 
+
+## 🧮 How each sub-score is calculated
+
+All scores are 0–100 (higher is better), computed in `app/metrics.py`.
+
+| Score | Formula | Buyer controls |
+|---|---|---|
+| Lifestyle | 60% share of must-haves present + 40% amenity richness (features / 7, capped at 1). Replaced by Jev's 0–4 fit judgement (×25) when Jev is on. | must-have features |
+| Commute | 100 − 2.5 × (minutes − 10). Minutes = 6 + 1.9 × straight-line miles to the destination (a rough Triangle drive-time estimate, not live traffic). Halved if over the max commute. | destination, max minutes |
+| Environment | 100 − flood penalty (40 for FEMA zones A/AE, 45 for V/VE, 15 for the 500-year floodplain) − 0.7 × (30-day average AQI − 30) − min(20, 0.5 × heat days ≥35 °C + 2 × heavy-rain days ≥50 mm + 1 × wind days ≥75 km/h, over the last 12 months). Scored at the neighborhood centre. | weight |
+| Maintenance | 100 − min(50, 0.9 × age in years) − min(30, HOA ÷ 10), and −20 more if the HOA is above the buyer's cap. | HOA cap |
+| Rooms | 60 + 15 × (beds − beds wanted) + (sqft − min sqft) ÷ 40 | beds, min sqft |
+
+## 🐳 Docker
+
+| Piece | What it is |
+|---|---|
+| `Dockerfile` | 193 MB Python 3.12 image for the app and the pipeline (non-root, health check). A `test` stage runs lint + the full test suite inside the image. |
+| `docker-compose.yml` | `vllm` (official `vllm/vllm-openai:v0.31.0` image, GPU, Nemotron 3.5 Lightning, reuses your Hugging Face cache) · `app` · `app-hostnet` · `pipeline` (one-shot ingestion job) |
+| CI | builds both stages, smoke-tests the container and validates the compose file on every push |
+
+```bash
+docker compose --profile gpu up -d                      # whole stack: vLLM + app (stop ./start_nemotron.sh first, they share the GPU)
+docker compose --profile hostnet up -d app-hostnet      # app only, using the vLLM already running on the host (Brev)
+docker compose run --rm pipeline                        # refresh live data (+ Databricks sync if configured)
+```
+
+Secrets (`TYPESAFE_API_KEY`, `DATABRICKS_*`, `HF_TOKEN`) are read from your shell or a local `.env` file, which is git- and docker-ignored.
