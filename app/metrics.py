@@ -16,11 +16,12 @@ LABELS = {"lifestyle": "Lifestyle", "school": "School", "safety": "Safety", "env
           "rooms": "Rooms / Layout", "maintenance": "Maintenance"}
 FORMULAS = {
     "lifestyle": "60% x share of must-haves present + 40% x amenity richness (features / 7, max 1); Jev fit x 25 replaces it when Jev is on",
-    "school": "raw school rating (1-10; GreatSchools from the Zillow listing when available, else neighborhood) x 10; halved when below the buyer's minimum rating",
+    "school": ("school rating 1-10 (GreatSchools on the Zillow listing, else NC DPI % at grade level / 10 for the nearest "
+               "elementary, middle and high school) x 10; halved when below the buyer's minimum"),
     "safety": "100 - 9 x ln(1 + severity-weighted incidents per sq mi, 90 days; persons x3, property x1, society x0.5); blended 50/50 with Jev",
     "environment": "100 - flood penalty (A/AE 40, V/VE 45, 500-yr 15) - 0.7 x (30-day AQI - 30) - min(20, 0.5 x heat days + 2 x heavy-rain days + wind days)",
-    "urban": "0.7 x (100 - 3.5 x miles to the target hub) + 0.3 x walk score",
-    "commute": "100 - 2.5 x (minutes - 10); minutes = Google Maps drive time when GOOGLE_MAPS_API_KEY is set, else 6 + 1.9 x miles; halved when over the max commute",
+    "urban": "0.7 x (100 - 3.5 x miles to the target hub) + 0.3 x walk score (EPA National Walkability Index x 5)",
+    "commute": "100 - 2.5 x (minutes - 10); minutes = OpenRouteService (free, ORS_API_KEY) or Google Maps drive time, else 6 + 1.9 x miles; halved when over the max commute",
     "forecast": "50 + spread x expected 12-month % (0.6 x metro HPI YoY + 0.15 x discount to neighborhood price/sqft); spread 4/6/8 by risk tolerance",
     "deal": "0.6 x affordability (budget fit, capped by a 28% housing ratio) + 0.4 x discount score (60 - 2 x % above neighborhood price/sqft)",
     "rooms": "60 + 15 x (beds - beds wanted) + (sqft - minimum sqft) / 40",
@@ -56,7 +57,8 @@ def school(lid, p, jev=None):
     rating = own or T.HOODS[r["neighborhood"]]["school_rating"]  # raw 1-10 rating, no normalization (spec)
     ok = rating >= (p.get("min_school_rating") or 0)
     return {"score": _clamp(rating * 10 if ok else rating * 5), "school_rating": rating, "meets_threshold": ok,
-            "source": "Zillow listing (GreatSchools ratings)" if own else "neighborhood rating (sample data)"}
+            "source": r.get("school_source") or ("Zillow listing (GreatSchools ratings)" if own else
+                                                 T.HOODS[r["neighborhood"]].get("school_source", "neighborhood rating (sample data)"))}
 
 
 def safety(lid, p, jev=None):
@@ -80,9 +82,10 @@ def urban(lid, p, jev=None):
     r = _L(lid)
     target, (lat, lon) = T._dest(p.get("urban_target") or "downtown raleigh")
     miles = T._miles((r["lat"], r["lon"]), (lat, lon))
-    walk = T.HOODS[r["neighborhood"]]["walk_score"]
+    h = T.HOODS[r["neighborhood"]]
+    walk = r.get("walk_score") or h["walk_score"]  # EPA National Walkability Index (x5) when available
     return {"score": _clamp(0.7 * (100 - miles * 3.5) + 0.3 * walk), "target": target, "miles": round(miles, 1),
-            "walk_score": walk}
+            "walk_score": walk, "walk_source": r.get("walk_source") or h.get("walk_source", "sample")}
 
 
 def commute(lid, p, jev=None):

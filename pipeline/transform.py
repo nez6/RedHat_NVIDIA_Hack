@@ -90,7 +90,7 @@ def environment_index(env):
     aqi = env.get("aqi_30d")
     pen += max(0.0, (aqi or 0) - 30) * 0.7
     w = env.get("weather_12m") or {}
-    pen += min(20, 0.5 * w.get("heat_days", 0) + 2 * w.get("heavy_rain_days", 0) + 1 * w.get("high_wind_days", 0))
+    pen += min(20, 0.5 * (w.get("heat_days") or 0) + 2 * (w.get("heavy_rain_days") or 0) + 1 * (w.get("high_wind_days") or 0))
     return int(max(0, min(100, round(100 - pen))))
 
 

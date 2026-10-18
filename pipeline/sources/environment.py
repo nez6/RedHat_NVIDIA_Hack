@@ -1,12 +1,15 @@
 """Environment / weather risk per neighborhood centroid (all keyless public APIs).
 
 - FEMA National Flood Hazard Layer: flood zone at the point (A/AE/V = 1% annual chance "SFHA").
-- Open-Meteo Air Quality: mean US AQI over the last 30 days.
-- Open-Meteo Archive (ERA5): last 12 months of extreme heat, heavy rain and high-wind days.
+- Open-Meteo Air Quality: mean US AQI over the last 30 days (free for non-commercial use).
+- NOAA ACIS (default): last 12 months of extreme heat and heavy-rain days. Free for any use, no key.
+  Open-Meteo's historical archive is a paid tier for commercial use; set WEATHER_SOURCE=open-meteo to use it anyway.
 """
 import datetime as dt
+import os
 
 from .. import http
+from . import free_data
 
 FEMA_NFHL_URL = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query"
 AQI_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -44,6 +47,12 @@ def extreme_days(lat, lon, today=None):
             "high_wind_days": count("wind_gusts_10m_max", GUST_KMH), "window": f"{start}..{end}"}
 
 
+def weather_12m(lat, lon):
+    if os.getenv("WEATHER_SOURCE", "acis").lower() == "open-meteo":
+        return extreme_days(lat, lon)
+    return free_data.acis_extreme_days(lat, lon)
+
+
 def fetch_neighborhood(h):
     return {"flood": flood_zone(h["lat"], h["lon"]), "aqi_30d": mean_aqi(h["lat"], h["lon"]),
-            "weather_12m": extreme_days(h["lat"], h["lon"])}
+            "weather_12m": weather_12m(h["lat"], h["lon"])}

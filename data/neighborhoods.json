@@ -6,8 +6,34 @@
   "lon": -78.6455,
   "safety_index": 82,
   "school_rating": 8,
-  "median_ppsf": 330,
-  "walk_score": 78
+  "median_ppsf": 458,
+  "walk_score": 51,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 10.17,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 359,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 79.0,
+  "schools": [
+   {
+    "name": "Underwood Elementary",
+    "level": "Elementary",
+    "glp": 73.8,
+    "miles": 0.6
+   },
+   {
+    "name": "Oberlin Middle",
+    "level": "Middle",
+    "glp": 69.9,
+    "miles": 0.7
+   },
+   {
+    "name": "Raleigh Charter High School",
+    "level": "High",
+    "glp": 93.3,
+    "miles": 1.0
+   }
+  ]
  },
  {
   "name": "Oakwood",
@@ -15,9 +41,35 @@
   "lat": 35.786,
   "lon": -78.63,
   "safety_index": 68,
-  "school_rating": 6,
-  "median_ppsf": 310,
-  "walk_score": 85
+  "school_rating": 8,
+  "median_ppsf": 405,
+  "walk_score": 71,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 14.17,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 281,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 79.4,
+  "schools": [
+   {
+    "name": "Conn Elementary",
+    "level": "Elementary",
+    "glp": 71.6,
+    "miles": 0.8
+   },
+   {
+    "name": "Moore Square Middle",
+    "level": "Middle",
+    "glp": 75.9,
+    "miles": 0.7
+   },
+   {
+    "name": "Wake Young Men's Leadership Academy",
+    "level": "High",
+    "glp": 90.7,
+    "miles": 0.5
+   }
+  ]
  },
  {
   "name": "North Hills",
@@ -25,9 +77,35 @@
   "lat": 35.838,
   "lon": -78.642,
   "safety_index": 80,
-  "school_rating": 8,
-  "median_ppsf": 295,
-  "walk_score": 72
+  "school_rating": 6,
+  "median_ppsf": 393,
+  "walk_score": 58,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 11.67,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 225,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 56.2,
+  "schools": [
+   {
+    "name": "Douglas Elementary",
+    "level": "Elementary",
+    "glp": 59.9,
+    "miles": 0.7
+   },
+   {
+    "name": "Carroll Middle",
+    "level": "Middle",
+    "glp": 52.2,
+    "miles": 0.4
+   },
+   {
+    "name": "Sanderson High",
+    "level": "High",
+    "glp": 56.5,
+    "miles": 1.6
+   }
+  ]
  },
  {
   "name": "Brier Creek",
@@ -35,9 +113,35 @@
   "lat": 35.906,
   "lon": -78.786,
   "safety_index": 77,
-  "school_rating": 7,
-  "median_ppsf": 220,
-  "walk_score": 48
+  "school_rating": 6,
+  "median_ppsf": 209,
+  "walk_score": 49,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 9.83,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 145,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 62.6,
+  "schools": [
+   {
+    "name": "Brier Creek Elementary",
+    "level": "Elementary",
+    "glp": 42.8,
+    "miles": 1.1
+   },
+   {
+    "name": "Pine Hollow Middle",
+    "level": "Middle",
+    "glp": 67.2,
+    "miles": 3.0
+   },
+   {
+    "name": "Leesville Road High",
+    "level": "High",
+    "glp": 77.7,
+    "miles": 3.9
+   }
+  ]
  },
  {
   "name": "Southeast Raleigh",
@@ -46,8 +150,34 @@
   "lon": -78.59,
   "safety_index": 52,
   "school_rating": 5,
-  "median_ppsf": 185,
-  "walk_score": 55
+  "median_ppsf": 190,
+  "walk_score": 55,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 11,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 125,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 54.8,
+  "schools": [
+   {
+    "name": "Bugg Elementary",
+    "level": "Elementary",
+    "glp": 45.3,
+    "miles": 0.5
+   },
+   {
+    "name": "Carnage Middle",
+    "level": "Middle",
+    "glp": 71.7,
+    "miles": 2.1
+   },
+   {
+    "name": "Southeast Raleigh High",
+    "level": "High",
+    "glp": 47.3,
+    "miles": 1.3
+   }
+  ]
  },
  {
   "name": "Cameron Village",
@@ -55,9 +185,35 @@
   "lat": 35.793,
   "lon": -78.658,
   "safety_index": 79,
-  "school_rating": 8,
-  "median_ppsf": 350,
-  "walk_score": 88
+  "school_rating": 7,
+  "median_ppsf": 417,
+  "walk_score": 79,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 15.83,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 248,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 70.3,
+  "schools": [
+   {
+    "name": "Partnership Elementary",
+    "level": "Elementary",
+    "glp": 67.7,
+    "miles": 0.6
+   },
+   {
+    "name": "Oberlin Middle",
+    "level": "Middle",
+    "glp": 69.9,
+    "miles": 1.4
+   },
+   {
+    "name": "Needham Broughton High",
+    "level": "High",
+    "glp": 73.3,
+    "miles": 0.4
+   }
+  ]
  },
  {
   "name": "Downtown Cary",
@@ -65,9 +221,35 @@
   "lat": 35.788,
   "lon": -78.781,
   "safety_index": 86,
-  "school_rating": 9,
-  "median_ppsf": 265,
-  "walk_score": 70
+  "school_rating": 7,
+  "median_ppsf": 287,
+  "walk_score": 92,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 18.33,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 228,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 66.3,
+  "schools": [
+   {
+    "name": "Kingswood Elementary",
+    "level": "Elementary",
+    "glp": 63.6,
+    "miles": 0.4
+   },
+   {
+    "name": "East Cary Middle",
+    "level": "Middle",
+    "glp": 71.3,
+    "miles": 1.0
+   },
+   {
+    "name": "Cary High",
+    "level": "High",
+    "glp": 64.1,
+    "miles": 1.3
+   }
+  ]
  },
  {
   "name": "West Cary",
@@ -76,8 +258,34 @@
   "lon": -78.87,
   "safety_index": 90,
   "school_rating": 9,
-  "median_ppsf": 240,
-  "walk_score": 35
+  "median_ppsf": 274,
+  "walk_score": 53,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 10.67,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 178,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 86.3,
+  "schools": [
+   {
+    "name": "Turner Creek Elementary",
+    "level": "Elementary",
+    "glp": 80.3,
+    "miles": 0.3
+   },
+   {
+    "name": "Davis Drive Middle",
+    "level": "Middle",
+    "glp": 88.1,
+    "miles": 1.2
+   },
+   {
+    "name": "Green Level High",
+    "level": "High",
+    "glp": 90.5,
+    "miles": 1.7
+   }
+  ]
  },
  {
   "name": "Apex Peakway",
@@ -85,9 +293,35 @@
   "lat": 35.732,
   "lon": -78.85,
   "safety_index": 91,
-  "school_rating": 9,
-  "median_ppsf": 225,
-  "walk_score": 40
+  "school_rating": 8,
+  "median_ppsf": 257,
+  "walk_score": 78,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 15.67,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 314,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 76.5,
+  "schools": [
+   {
+    "name": "Baucom Elementary",
+    "level": "Elementary",
+    "glp": 81.0,
+    "miles": 0.4
+   },
+   {
+    "name": "Apex Middle",
+    "level": "Middle",
+    "glp": 74.3,
+    "miles": 0.4
+   },
+   {
+    "name": "Apex High",
+    "level": "High",
+    "glp": 74.3,
+    "miles": 1.1
+   }
+  ]
  },
  {
   "name": "Wake Forest Historic",
@@ -95,9 +329,35 @@
   "lat": 35.979,
   "lon": -78.51,
   "safety_index": 84,
-  "school_rating": 8,
-  "median_ppsf": 215,
-  "walk_score": 58
+  "school_rating": 5,
+  "median_ppsf": 213,
+  "walk_score": 47,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 9.33,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 250,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 52.5,
+  "schools": [
+   {
+    "name": "Wake Forest Elementary",
+    "level": "Elementary",
+    "glp": 52.5,
+    "miles": 0.3
+   },
+   {
+    "name": "Wake Forest Middle School",
+    "level": "Middle",
+    "glp": 52.5,
+    "miles": 2.0
+   },
+   {
+    "name": "Wake Forest High School",
+    "level": "High",
+    "glp": 52.5,
+    "miles": 0.5
+   }
+  ]
  },
  {
   "name": "Durham Downtown",
@@ -107,7 +367,32 @@
   "safety_index": 60,
   "school_rating": 6,
   "median_ppsf": 280,
-  "walk_score": 90
+  "walk_score": 91,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 18.17,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_source": "sample",
+  "school_glp_pct": 64.6,
+  "schools": [
+   {
+    "name": "Global Scholars Academy",
+    "level": "Elementary",
+    "glp": 42.8,
+    "miles": 0.6
+   },
+   {
+    "name": "Lakewood Montessori Middle",
+    "level": "Middle",
+    "glp": 73.6,
+    "miles": 1.8
+   },
+   {
+    "name": "Durham School of the Arts",
+    "level": "High",
+    "glp": 77.4,
+    "miles": 0.8
+   }
+  ]
  },
  {
   "name": "Trinity Park",
@@ -115,9 +400,34 @@
   "lat": 36.008,
   "lon": -78.905,
   "safety_index": 70,
-  "school_rating": 7,
+  "school_rating": 6,
   "median_ppsf": 300,
-  "walk_score": 80
+  "walk_score": 69,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 13.83,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_source": "sample",
+  "school_glp_pct": 63.1,
+  "schools": [
+   {
+    "name": "George Watts Elementary",
+    "level": "Elementary",
+    "glp": 67.4,
+    "miles": 0.3
+   },
+   {
+    "name": "Brogden Middle",
+    "level": "Middle",
+    "glp": 44.6,
+    "miles": 1.2
+   },
+   {
+    "name": "Durham School of the Arts",
+    "level": "High",
+    "glp": 77.4,
+    "miles": 0.3
+   }
+  ]
  },
  {
   "name": "Southpoint",
@@ -125,9 +435,34 @@
   "lat": 35.905,
   "lon": -78.945,
   "safety_index": 74,
-  "school_rating": 7,
+  "school_rating": 5,
   "median_ppsf": 210,
-  "walk_score": 38
+  "walk_score": 72,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 14.5,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_source": "sample",
+  "school_glp_pct": 54.5,
+  "schools": [
+   {
+    "name": "Southwest Elementary",
+    "level": "Elementary",
+    "glp": 69.8,
+    "miles": 2.0
+   },
+   {
+    "name": "Lowe's Grove Middle",
+    "level": "Middle",
+    "glp": 35.8,
+    "miles": 3.0
+   },
+   {
+    "name": "C E Jordan High",
+    "level": "High",
+    "glp": 57.9,
+    "miles": 1.6
+   }
+  ]
  },
  {
   "name": "Chapel Hill Southern Village",
@@ -135,9 +470,34 @@
   "lat": 35.88,
   "lon": -79.065,
   "safety_index": 88,
-  "school_rating": 10,
+  "school_rating": 7,
   "median_ppsf": 290,
-  "walk_score": 62
+  "walk_score": 76,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 15.17,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_source": "sample",
+  "school_glp_pct": 69.5,
+  "schools": [
+   {
+    "name": "Scroggs Elementary",
+    "level": "Elementary",
+    "glp": 77.8,
+    "miles": 0.2
+   },
+   {
+    "name": "Culbreth Middle",
+    "level": "Middle",
+    "glp": 68.6,
+    "miles": 0.7
+   },
+   {
+    "name": "Carrboro High",
+    "level": "High",
+    "glp": 62.1,
+    "miles": 1.4
+   }
+  ]
  },
  {
   "name": "Carrboro",
@@ -145,9 +505,34 @@
   "lat": 35.91,
   "lon": -79.075,
   "safety_index": 80,
-  "school_rating": 10,
+  "school_rating": 5,
   "median_ppsf": 305,
-  "walk_score": 75
+  "walk_score": 90,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 18,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_source": "sample",
+  "school_glp_pct": 49.2,
+  "schools": [
+   {
+    "name": "Carrboro Elementary",
+    "level": "Elementary",
+    "glp": 62.1,
+    "miles": 0.4
+   },
+   {
+    "name": "Culbreth Middle",
+    "level": "Middle",
+    "glp": 68.6,
+    "miles": 1.5
+   },
+   {
+    "name": "Phoenix Academy High",
+    "level": "High",
+    "glp": 17.0,
+    "miles": 0.6
+   }
+  ]
  },
  {
   "name": "Holly Springs",
@@ -156,8 +541,34 @@
   "lon": -78.833,
   "safety_index": 89,
   "school_rating": 8,
-  "median_ppsf": 205,
-  "walk_score": 30
+  "median_ppsf": 254,
+  "walk_score": 57,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 11.33,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 220,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 80.3,
+  "schools": [
+   {
+    "name": "Holly Springs Elementary",
+    "level": "Elementary",
+    "glp": 84.4,
+    "miles": 0.4
+   },
+   {
+    "name": "Holly Ridge Middle",
+    "level": "Middle",
+    "glp": 72.1,
+    "miles": 1.0
+   },
+   {
+    "name": "Holly Springs High",
+    "level": "High",
+    "glp": 84.4,
+    "miles": 1.8
+   }
+  ]
  },
  {
   "name": "Garner",
@@ -165,9 +576,35 @@
   "lat": 35.711,
   "lon": -78.614,
   "safety_index": 72,
-  "school_rating": 6,
-  "median_ppsf": 185,
-  "walk_score": 35
+  "school_rating": 5,
+  "median_ppsf": 204,
+  "walk_score": 45,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 9.0,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 157,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 50.3,
+  "schools": [
+   {
+    "name": "Creech Road Elementary",
+    "level": "Elementary",
+    "glp": 56.9,
+    "miles": 0.8
+   },
+   {
+    "name": "North Garner Middle",
+    "level": "Middle",
+    "glp": 46.1,
+    "miles": 0.3
+   },
+   {
+    "name": "Garner High",
+    "level": "High",
+    "glp": 47.9,
+    "miles": 1.2
+   }
+  ]
  },
  {
   "name": "Morrisville",
@@ -175,8 +612,34 @@
   "lat": 35.824,
   "lon": -78.825,
   "safety_index": 87,
-  "school_rating": 9,
-  "median_ppsf": 235,
-  "walk_score": 45
+  "school_rating": 8,
+  "median_ppsf": 243,
+  "walk_score": 68,
+  "school_source": "NC DPI % at grade level, nearest elementary/middle/high (NCES locations)",
+  "walk_index": 13.5,
+  "walk_source": "EPA National Walkability Index",
+  "ppsf_sales": 161,
+  "ppsf_source": "Wake County sales since 2024-10-18",
+  "school_glp_pct": 81.7,
+  "schools": [
+   {
+    "name": "Sterling Montessori Academy",
+    "level": "Elementary",
+    "glp": 73.0,
+    "miles": 1.0
+   },
+   {
+    "name": "West Cary Middle",
+    "level": "Middle",
+    "glp": 77.0,
+    "miles": 2.3
+   },
+   {
+    "name": "Wake EC of Information & Biotechnologies",
+    "level": "High",
+    "glp": 95.0,
+    "miles": 2.2
+   }
+  ]
  }
 ]

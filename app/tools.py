@@ -159,6 +159,46 @@ def google_drive_minutes(origin, destination, transport=None):
     return _MAPS_CACHE[ck]
 
 
+_ORS_GEO = {}
+
+
+def ors_drive_minutes(origin, destination, transport=None):
+    """Drive time from OpenRouteService (free plan, needs ORS_API_KEY). Known hubs skip geocoding. None when unavailable."""
+    key = os.getenv("ORS_API_KEY")
+    if not key and not transport:
+        return None
+    ck = (round(origin[0], 4), round(origin[1], 4), "ors:" + destination.lower())
+    if ck in _MAPS_CACHE:
+        return _MAPS_CACHE[ck]
+    import urllib.parse
+    import urllib.request
+
+    def call(url, body=None):
+        if transport:
+            return transport(url, body)
+        req = urllib.request.Request(url, data=json.dumps(body).encode() if body else None,
+                                     headers={"Authorization": key, "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    try:
+        name = destination.lower().strip()
+        if name in DESTINATIONS:
+            dest = DESTINATIONS[name]
+        elif name in _ORS_GEO:
+            dest = _ORS_GEO[name]
+        else:
+            g = call("https://api.openrouteservice.org/geocode/search?" + urllib.parse.urlencode(
+                {"api_key": key or "test", "text": destination, "boundary.country": "US", "size": 1}))
+            lon, lat = g["features"][0]["geometry"]["coordinates"]
+            dest = _ORS_GEO[name] = (lat, lon)
+        m = call("https://api.openrouteservice.org/v2/matrix/driving-car",
+                 {"locations": [[origin[1], origin[0]], [dest[1], dest[0]]], "sources": [0], "destinations": [1], "metrics": ["duration"]})
+        _MAPS_CACHE[ck] = round(m["durations"][0][0] / 60)
+    except Exception:
+        _MAPS_CACHE[ck] = None
+    return _MAPS_CACHE[ck]
+
+
 def neighborhood_report(listing_id, commute_destination="downtown raleigh"):
     r = BY_ID.get(int(listing_id))
     if not r:
@@ -166,15 +206,18 @@ def neighborhood_report(listing_id, commute_destination="downtown raleigh"):
     h = HOODS[r["neighborhood"]]
     dname, d = _dest(commute_destination)
     gm = google_drive_minutes((r["lat"], r["lon"]), commute_destination) if commute_destination else None
+    om = ors_drive_minutes((r["lat"], r["lon"]), commute_destination) if commute_destination and gm is None else None
     if gm is not None:
         minutes, dname, src = gm, commute_destination, "google_maps_distance_matrix"
+    elif om is not None:
+        minutes, dname, src = om, commute_destination, "openrouteservice"
     else:
         minutes, src = round(6 + _miles((r["lat"], r["lon"]), d) * 1.9), "estimate"  # rough Triangle drive time incl. traffic
     lv = live.safety(h["name"])
     return {"listing_id": r["id"], "neighborhood": h["name"],
             "safety_index": lv["safety_index"] if lv else h["safety_index"],
             "safety_source": f"{lv['source']} ({lv['scope']}, {lv['incidents']} incidents)" if lv else "baseline",
-            "school_rating": r.get("school_rating") or h["school_rating"], "walk_score": h["walk_score"],
+            "school_rating": r.get("school_rating") or h["school_rating"], "walk_score": r.get("walk_score") or h["walk_score"],
             "commute_to": dname, "commute_minutes": minutes, "commute_source": src}
 
 

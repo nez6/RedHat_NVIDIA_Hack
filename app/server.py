@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from . import agents, auth as A, intake as I, jev as J, live, metric_agents as MA, metrics as M, rbac as R, tools as T, valuation
 from pipeline import http as pipeline_http
 from pipeline import listings as PL
+from pipeline.sources import redfin as RF
 from pipeline.sources import zillow as Z
 
 app = FastAPI(title="DreamHome AI (Nemotron)")
@@ -347,23 +348,35 @@ def zillow_search_url(location: str):
     return {"location": location, "url": Z.search_url(location)}
 
 
+@app.post("/api/listings/import")
 @app.post("/api/zillow/import")
 def zillow_import(body: dict, request: Request):
-    """A Zillow page the user saved from their own browser: {name, html}. Parsed, cleaned, added to the listing store."""
+    """A Zillow page saved from the user's browser or a Redfin "Download All" CSV: {name, html}. Parsed, cleaned,
+    enriched with free public data (Wake County tax record, EPA walkability, nearest-school proficiency), added."""
     need(request, "listings:import")
-    page = body.get("html") or ""
+    page = body.get("html") or body.get("csv") or ""
     if not page or len(page) > 15_000_000:
-        raise HTTPException(400, "send the saved page's HTML (max 15 MB)")
-    name = re.sub(r"[^A-Za-z0-9._-]+", "_", body.get("name") or "zillow_page")[:80]
-    raw = [dict(r, source="zillow_upload") for r in Z.parse_html(page, name)]
-    if not raw:
-        hint = "it looks like a CAPTCHA page" if "captcha" in page.lower() else "no Zillow listing data found in it"
-        raise HTTPException(422, f"could not read listings from that page: {hint}")
+        raise HTTPException(400, "send the saved page's HTML or the Redfin CSV (max 15 MB)")
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", body.get("name") or "listings")[:80]
+    is_csv = name.lower().endswith(".csv") or RF.looks_like_redfin(page)
+    if is_csv:
+        raw = RF.parse_csv(page, name)
+        if not raw:
+            raise HTTPException(422, "could not read listings from that CSV: use Redfin's 'Download All' export")
+    else:
+        raw = [dict(r, source="zillow_upload") for r in Z.parse_html(page, name)]
+        if not raw:
+            hint = "it looks like a CAPTCHA page" if "captcha" in page.lower() else "no Zillow listing data found in it"
+            raise HTTPException(422, f"could not read listings from that page: {hint}")
     rows, report = PL.clean(raw)
+    if os.getenv("LISTINGS_ENRICH", "1") == "1" and rows:
+        report["enriched"] = PL.enrich(rows)
     added = T.add_listings(rows)
-    try:  # keep the page so the next pipeline build includes it
-        os.makedirs(PL.SAVED_DIR, exist_ok=True)
-        with open(os.path.join(PL.SAVED_DIR, name if name.endswith((".html", ".htm")) else name + ".html"), "w") as f:
+    try:  # keep the file so the next pipeline build includes it
+        folder = PL.REDFIN_DIR if is_csv else PL.SAVED_DIR
+        ext = (".csv",) if is_csv else (".html", ".htm")
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, name if name.endswith(ext) else name + ext[0]), "w") as f:
             f.write(page)
     except OSError:
         pass

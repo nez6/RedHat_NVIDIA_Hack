@@ -1,6 +1,6 @@
 """Listing ingestion + data quality: Zillow saved pages and live feeds -> one clean, de-duplicated listing table.
 
-    python -m pipeline.listings                      # parse data/zillow/saved/*.html -> data/zillow/listings.json
+    python -m pipeline.listings                      # parse data/zillow/saved/*.html + data/redfin/*.csv -> data/zillow/listings.json
     python -m pipeline.listings --location "Cary, NC"  # also pull live listings for that area (RENTCAST_API_KEY)
 
 Data-quality rules (the "delete duplicate / non-existent data" step on the architecture slide):
@@ -21,13 +21,14 @@ import re
 import sys
 
 from .config import DATA_DIR
-from .sources import rentcast, zillow
+from .sources import free_data, redfin, rentcast, zillow
 
 ZILLOW_DIR = os.path.join(DATA_DIR, "zillow")
 SAVED_DIR = os.getenv("ZILLOW_SAVED_DIR", os.path.join(ZILLOW_DIR, "saved"))
 OUT_PATH = os.getenv("ZILLOW_LISTINGS_PATH", os.path.join(ZILLOW_DIR, "listings.json"))
+REDFIN_DIR = os.getenv("REDFIN_SAVED_DIR", os.path.join(DATA_DIR, "redfin"))
 MAX_NEIGHBORHOOD_MILES = 8.0
-SOURCE_RANK = {"zillow_saved_page": 3, "zillow_upload": 3, "rentcast_api": 2}
+SOURCE_RANK = {"zillow_saved_page": 3, "zillow_upload": 3, "redfin_csv": 3, "rentcast_api": 2}
 
 FEATURE_PATTERNS = {
     "fenced yard": r"fenced (back)?yard|fully fenced|privacy fence", "home office": r"home office|\boffice\b|\bstudy\b|\bden\b",
@@ -136,6 +137,56 @@ def load_saved(saved_dir=None):
     return zillow.parse_dir(saved_dir or SAVED_DIR)
 
 
+def load_redfin(redfin_dir=None):
+    """Every Redfin "Download All" CSV in data/redfin/. Returns (records, per-file log)."""
+    d, recs, log = redfin_dir or REDFIN_DIR, [], {}
+    for name in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+        if name.lower().endswith(".csv"):
+            with open(os.path.join(d, name), encoding="utf-8", errors="replace") as f:
+                rows = redfin.parse_csv(f.read(), name)
+            log[name] = f"{len(rows)} listings"
+            recs.extend(rows)
+    return recs, log
+
+
+def _in_wake(r):
+    return (r.get("state") or "NC").upper() == "NC" and str(r.get("zip") or "")[:3] in ("275", "276")
+
+
+def enrich(rows, get=None, schools=None):
+    """Best-effort free enrichment per listing: Wake County tax record, EPA walkability, nearest-school proficiency.
+    Network failures never drop a listing; each added field names its source."""
+    if schools is None:
+        from . import reference
+        schools = reference.load_schools()
+    counts = {"wake_parcel": 0, "walkability": 0, "schools": 0}
+    for r in rows:
+        if _in_wake(r):
+            try:
+                p = free_data.wake_parcel(r["address"], r.get("zip"), get=get)
+            except Exception:
+                p = None
+            if p:
+                if r.get("year_built_estimated") and p.get("year_built"):
+                    r["year_built"], r["year_built_estimated"] = int(p["year_built"]), False
+                r.update(assessed_value=p.get("assessed_value"), last_sale_price=p.get("last_sale_price"),
+                         last_sale_date=p.get("last_sale_date"), county_heated_sqft=p.get("heated_sqft"), tax_record_source=p["source"])
+                counts["wake_parcel"] += 1
+        try:
+            w = free_data.epa_walkability(r["lat"], r["lon"], get=get)
+        except Exception:
+            w = None
+        if w:
+            r.update(walk_score=w["walk_score"], walk_source="EPA National Walkability Index")
+            counts["walkability"] += 1
+        if not r.get("school_rating") and schools:
+            sr = free_data.nearby_school_rating(r["lat"], r["lon"], schools)
+            if sr:
+                r.update(school_rating=sr["school_rating"], school_source=sr["source"], schools=sr["schools"])
+                counts["schools"] += 1
+    return counts
+
+
 def write(listings, report, path=None):
     path = path or OUT_PATH
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -149,11 +200,16 @@ def write(listings, report, path=None):
 def build(location=None, saved_dir=None, out_path=None, live_fetch=None):
     """Saved Zillow pages (+ live listings for `location` when a feed is configured) -> data/zillow/listings.json."""
     raw, files = load_saved(saved_dir)
+    rf, rf_files = load_redfin()
+    raw.extend(rf)
+    files.update(rf_files)
     live_meta = None
     if location and (live_fetch or rentcast.configured()):
         recs, live_meta = (live_fetch or rentcast.fetch)(location)
         raw.extend(recs)
     listings, report = clean(raw)
+    if os.getenv("LISTINGS_ENRICH", "1") == "1" and listings:
+        report["enriched"] = enrich(listings)
     report.update({"saved_pages": files, "live": live_meta})
     write(listings, report, out_path)
     return listings, report

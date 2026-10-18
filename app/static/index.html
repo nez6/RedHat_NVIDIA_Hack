@@ -109,10 +109,10 @@ header{position:static}
     <div id="weights"></div>
     <div class="foot">Sliders re-rank instantly. Your Home Match questionnaire sets them; otherwise they start at our defaults.</div>
     <button class="go" id="go">Find my dream home</button>
-    <h2 style="margin-top:22px">Add Zillow listings</h2>
-    <div class="foot" style="margin-top:0">Open the Zillow search for your area, save the page (Ctrl/Cmd+S, "Webpage, HTML only") and drop it here. We parse every listing on it.</div>
+    <h2 style="margin-top:22px">Add real listings</h2>
+    <div class="foot" style="margin-top:0">Zillow: open the search for your area and save the page (Ctrl/Cmd+S, "Webpage, HTML only"). Redfin: click "Download All" under the results. Drop either file here; we parse every listing and add county records, walkability and nearby school data.</div>
     <a id="zlink" class="foot" target="_blank" rel="noopener" href="https://www.zillow.com/homes/" style="display:inline-block;color:var(--accent-ink)">Open Zillow search →</a>
-    <input id="zfile" type="file" accept=".html,.htm" style="margin-top:8px">
+    <input id="zfile" type="file" accept=".html,.htm,.csv" style="margin-top:8px">
     <div class="foot" id="zout"></div>
   </aside>
 
@@ -208,7 +208,7 @@ async function go(){
     const ls=d.listings_by_source||{}; $("srcnote").textContent="Listings: "+Object.entries(ls).map(([k,v])=>v+" "+k.replace(/_/g," ")).join(" · ")+". Payment figures are estimates, not financial advice.";}catch(e){}
   $("location").oninput=()=>{$("zlink").href="https://www.zillow.com/homes/"+encodeURIComponent($("location").value.trim().replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,""))+"_rb/";};
   $("zfile").onchange=async ev=>{const f=ev.target.files[0]; if(!f)return; $("zout").textContent="parsing "+f.name+"…";
-    try{const r=await fetch("api/zillow/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:f.name,html:await f.text()})}); const d=await r.json();
+    try{const r=await fetch("api/listings/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:f.name,html:await f.text()})}); const d=await r.json();
       $("zout").textContent=r.ok?`${d.parsed} listings found, ${d.added} new after cleaning (${d.quality.dropped_not_for_sale} not for sale, ${d.quality.dropped_incomplete} incomplete, ${d.quality.dropped_duplicate} duplicates removed). Run the search to include them.`:(d.detail||"could not read that page");}catch(e){$("zout").textContent=String(e)}};
   const tok=new URLSearchParams(location.search).get("token")||(()=>{try{return sessionStorage.getItem("portal_token")}catch(_){return null}})();
   if(tok){try{const r=await fetch("api/portal?token="+encodeURIComponent(tok)); if(r.ok){const d=await r.json(); state.token=tok; try{sessionStorage.setItem("portal_token",tok)}catch(_){}

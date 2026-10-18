@@ -15,6 +15,10 @@ os.environ["LISTINGS_SOURCE"] = "sample"
 os.environ["ZILLOW_SAVED_DIR"] = os.path.join(FIX, "zillow")
 os.environ["ZILLOW_LISTINGS_PATH"] = os.path.join(_TMP, "zillow_listings.json")
 os.environ["INTAKE_DIR"] = os.path.join(_TMP, "intake")
+os.environ["REDFIN_SAVED_DIR"] = os.path.join(_TMP, "redfin")
+os.environ["LISTINGS_ENRICH"] = "0"  # enrichment calls public APIs; tests inject fakes instead
+os.environ["WEATHER_SOURCE"] = "acis"
+os.environ.pop("ORS_API_KEY", None)
 for k in ("RENTCAST_API_KEY", "GOOGLE_MAPS_API_KEY", "DATABRICKS_HOST", "DATABRICKS_TOKEN", "ADMIN_TOKEN"):
     os.environ.pop(k, None)
 os.environ["PORTAL_SECRET"] = "test-secret"

@@ -443,3 +443,23 @@ One RBAC catalog, `app/rbac.py`, defines the three groups for both the app and U
   - **Realtors:** read silver and gold, plus read-only access to `client_intake` and the documents volume.
   - **Clients:** only `gold.jev_ready_listings`, plus their own `client_intake` row through a row filter on `current_user()`.
 - `python -m app.rbac --sql` prints the SQL.
+
+
+## 💸 Paid vs free data, and the free replacements
+
+| Need | Before | Now (free, no scraping) |
+|---|---|---|
+| Commute minutes | Google Maps Distance Matrix (paid per use; legacy, can't be enabled on new projects) | **OpenRouteService** driving matrix + geocoding (free plan, `ORS_API_KEY`). Google is still used if `GOOGLE_MAPS_API_KEY` is set; otherwise a distance estimate |
+| Live listings | RentCast (50 free requests a month, then paid) | RentCast stays optional. Added a **Redfin "Download All" CSV importer** next to the Zillow parser: a person exports the CSV from Redfin and uploads it in the app or drops it in `data/redfin/` |
+| 12-month weather extremes | Open-Meteo historical archive (paid tier for commercial use) | **NOAA ACIS** PRISM grid: heat days ≥ 95°F, heavy-rain days ≥ 2 in (free, no key). `WEATHER_SOURCE=open-meteo` switches back |
+| School score | Sample numbers | **NC DPI** % of students at grade level for the nearest elementary, middle and high school (**NCES** locations), as a 1-10 rating. Nearest school stands in for assignment, so families should confirm with the district |
+| Walk score | Sample numbers | **EPA National Walkability Index** (1-20, ×5) for the listing's census block group |
+| Neighborhood price / sq ft | Sample numbers | **Wake County tax parcels**: median sale price per heated sq ft within 1 mile over 2 years (Wake towns; others stay marked sample) |
+| Year built, assessed value, last sale | Listing only | **Wake County tax parcels**, matched by street number + name + ZIP |
+
+```bash
+env/bin/python -m pipeline.reference      # real schools, walkability and price/sqft -> data/reference/, data/neighborhoods.json
+env/bin/python -m pipeline.listings       # Zillow pages + Redfin CSVs, cleaned and enriched -> data/zillow/listings.json
+```
+
+FRED, the Raleigh/Cary police feeds, FEMA flood zones, Open-Meteo air quality (non-commercial), Databricks Free Edition and your own Nemotron/vLLM were already free.
