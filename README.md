@@ -95,7 +95,7 @@ The hackathon page lists the bounty names; we read each one as its title describ
 Because vLLM exposes an OpenAI-compatible API, the app, NeMo Gym and the eval scripts all talk to the same server.
 
 ### NVIDIA Developer Champions Choice Award
-**Our pitch:** a complete, governed system that a realtor could use tomorrow, built in 48 hours on NVIDIA Brev with Nemotron, vLLM and NeMo Gym. It covers the buyer questionnaire, 6 agents, Jev decisions, a Databricks medallion, a judge-facing data-flow view and a prompt test lab. Every claim in this README is backed by a test or a live-run number.
+**Our pitch:** a complete, governed system that a realtor could use tomorrow, built in 24 hours on NVIDIA Brev with Nemotron, vLLM and NeMo Gym. It covers the buyer questionnaire, 6 agents, Jev decisions, a Databricks medallion, a judge-facing data-flow view and a prompt test lab. Every claim in this README is backed by a test or a live-run number.
 
 ## How NeMo Gym made the agents better
 
