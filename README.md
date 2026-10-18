@@ -52,6 +52,51 @@ Choose the account type on the sign-in page, then use:
 
 > Build history and earlier designs (where you see 10 or 14 agents) are in [docs/BUILD_LOG.md](docs/BUILD_LOG.md). The shipped crew is the six agents above.
 
+## Bounties: what each asks for and how we meet it
+
+The hackathon page lists the bounty names; we read each one as its title describes.
+
+### Best Use of NVIDIA Nemotron Lightning
+**Requirement:** make Nemotron Lightning central to a working system.
+**How we meet it:**
+- **One model for everything.** NVIDIA Nemotron 3.5 Lightning 30B-A3B is the only generative model in EstatePulse. It runs all of these:
+  - the 6 tool-calling agents;
+  - the plain-English filter extraction (a forced `set_search_filters` tool call);
+  - Jev's per-home decisions;
+  - the final recommendation.
+- **Why Lightning.** It is a mixture-of-experts model with 30B total but only about 3B active parameters. That gives 30B-class tool calling at small-model speed on one L40S: about 1–1.4 s per scoring-agent call, and about 2–3 s for the listing agent's search.
+- **Evidence:**
+  - all 15 scoring-agent runs finished on Nemotron;
+  - the listing agent passed the buyer's filters exactly in 4 of 4 test cases;
+  - plain-English extraction is 12/12 exact as shipped;
+  - all of it is live in `/app`, `/pipeline` and `/testlab`.
+
+### Best Model Improvement With NVIDIA NeMo Gym
+**Requirement:** use NeMo Gym to measurably improve the model's results.
+**How we meet it:**
+- **The environment.** `resources_servers/estatepulse` is a NeMo Gym resources server. `rewards.py` scores each agent: half for calling its tool with every home, half for picking the right best home. Deal and Forecast are graded against the computed answer.
+- **Round 1, the baseline evaluation** (`results/gym/`): the two tasks that asked the model to output a number scored lowest: Forecast passed 63% and Deal 79%, against 88–100% for the rest. We responded by **moving all arithmetic out of the model**: Python computes every number Jev weighs.
+- **Round 2, plain-English filters to tool arguments:** 75% exact with Nemotron alone, **100%** as shipped.
+- **Round 3, the prompt test lab** (`/testlab`, graded by the same Gym `eval_reward`): **4 of 5 scoring agents went from 0–50% to 100% pass** after one prompt change found by the reward.
+- **Honest scope:** we improved the system around the model (prompts, tools, guardrails, data), and NeMo Gym measured every step. The 96 reward-scored samples are ready for a GRPO fine-tuning run. The full write-up is in [How NeMo Gym made the agents better](#how-nemo-gym-made-the-agents-better).
+
+### Best Use of Red Hat vLLM
+**Requirement:** make vLLM central to the system, not just a model host.
+**How we meet it:** Nemotron is served by vLLM 0.31 on our own Brev GPU (`start_nemotron.sh`), so no client data leaves the machine. We use more than plain text generation:
+
+| vLLM feature | What it gives us |
+|---|---|
+| Tool calling (`--enable-auto-tool-choice --tool-call-parser qwen3_coder`) | All 6 agents call tools natively |
+| Forced tool choice + structured outputs | Filter extraction always returns valid arguments; Jev answers with exactly one option letter |
+| **Logprobs** | Jev turns the probabilities of its option letters into a calibrated tour / consider / skip confidence, in a single token |
+| Continuous batching (`--max-num-seqs 32`) + prefix caching | The 5 scoring agents and Jev's per-home calls run in parallel on one GPU |
+| FP8 quantization + Nemotron reasoning parser | The 30B model fits a 48 GB L40S with room for the batch |
+
+Because vLLM exposes an OpenAI-compatible API, the app, NeMo Gym and the eval scripts all talk to the same server.
+
+### NVIDIA Developer Champions Choice Award
+**Our pitch:** a complete, governed system that a realtor could use tomorrow, built in 48 hours on NVIDIA Brev with Nemotron, vLLM and NeMo Gym. It covers the buyer questionnaire, 6 agents, Jev decisions, a Databricks medallion, a judge-facing data-flow view and a prompt test lab. Every claim in this README is backed by a test or a live-run number.
+
 ## How NeMo Gym made the agents better
 
 NeMo Gym is our referee. `resources_servers/estatepulse` is a NeMo Gym resources server, and `rewards.py` holds the reward functions:
