@@ -20,9 +20,12 @@ app = FastAPI(title="DreamHome AI (Nemotron)")
 @app.on_event("startup")
 def _warm_gold():
     """DATA_SOURCE=databricks: start fetching the gold snapshot in the background (requests never wait on it)."""
-    from . import gold
+    from . import flow, gold
     if gold.wanted():
         gold.refresh()
+    from pipeline import databricks_sink
+    if databricks_sink.configured():
+        flow.warm()  # Data-flow page: row counts + latest validation ready before the first visit
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 
 
@@ -216,6 +219,21 @@ def value(req: ValueRequest):
         finally:
             T.BY_ID.pop(lid, None)
     return {"valuation": est, "finance": finance, "factors": factors}
+
+
+@app.get("/pipeline")
+def pipeline_page(request: Request):
+    return page(request, "pipeline", "pipeline.html")
+
+
+@app.get("/api/pipeline-flow")
+def pipeline_flow(request: Request, refresh: bool = False):
+    """Sources -> Databricks medallion -> 6 agents -> Jev -> outputs, with live row counts and the latest validation."""
+    user = A.current_user(request)
+    if not user or not R.can_view(user["role"], "pipeline"):
+        raise HTTPException(401 if not user else 403, "sign in as an admin or realtor")
+    from . import flow
+    return flow.build(refresh=refresh)
 
 
 @app.get("/architecture")

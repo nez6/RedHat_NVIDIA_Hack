@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EstatePulse AI — Data flow</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--deep:#0b1220;--line:#334155;--text:#f8fafc;--muted:#94a3b8;--green:#10b981;--blue:#3b82f6;--red:#ee0000;--amber:#f59e0b;
+  --bronze:#b45309;--silver:#94a3b8;--gold:#eab308;--agent:#10b981;--jev:#a78bfa}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 'Segoe UI',system-ui,-apple-system,sans-serif}
+.topnav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 20px;background:var(--deep);border-bottom:1px solid var(--line)}
+.topnav .brand{font-weight:700;color:var(--text);text-decoration:none;margin-right:12px}
+.topnav a.tab{padding:5px 12px;border-radius:99px;color:var(--muted);text-decoration:none;font-size:13.5px}
+.topnav a.tab:hover{color:var(--text);background:var(--card)}.topnav a.tab.on{background:var(--green);color:#062016;font-weight:600}
+main{max-width:1400px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:22px;margin:4px 0 4px}h2{font-size:16px;margin:28px 0 10px;color:var(--text)}
+.sub{color:var(--muted);margin:0 0 14px}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted);font-size:12.5px;background:var(--deep)}
+.chip.ok{border-color:var(--green);color:#34d399}.chip.warn{border-color:var(--amber);color:#fbbf24}.chip.bad{border-color:#f87171;color:#fca5a5}
+button{background:var(--blue);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+button:disabled{opacity:.5;cursor:default}
+/* flow */
+.flow{display:grid;grid-template-columns:1.15fr 24px 1fr 24px .9fr 24px 1.2fr 24px 1.1fr 24px .9fr;gap:0;align-items:stretch}
+.col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.col h3{margin:0 0 4px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.arrow{display:flex;align-items:center;justify-content:center;color:var(--line);font-size:18px}
+.node{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12.5px;transition:.15s;cursor:default}
+.node b{display:block;font-size:12.5px;word-break:break-word}.node small{color:var(--muted);display:block;font-size:11.5px}
+.node .n{float:right;font-variant-numeric:tabular-nums;color:var(--text);font-weight:600;font-size:12px}
+.node.src{border-left-color:var(--blue)}.node.bronze{border-left-color:var(--bronze)}.node.silver{border-left-color:var(--silver)}
+.node.gold{border-left-color:var(--gold)}.node.secure{border-left-color:var(--red)}.node.agent{border-left-color:var(--agent);cursor:pointer}
+.node.jev{border-left-color:var(--jev)}.node.out{border-left-color:var(--green)}
+.node.hi{background:#12324a;border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}.node.dim{opacity:.35}
+.node.agent.sel{background:#0e3b2e;border-color:var(--green)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:10px}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+/* agent cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.card.sel{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+.card h4{margin:0 0 2px;font-size:15px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.card .q{color:var(--muted);font-size:12.5px;margin:0 0 10px}
+.io{display:grid;grid-template-columns:72px 1fr;gap:4px 10px;font-size:12.5px}
+.io dt{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.06em;padding-top:2px}.io dd{margin:0;min-width:0}
+.io code{background:var(--deep);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px;word-break:break-word}
+.io ul{margin:0;padding-left:16px}.io li{margin:1px 0}
+.metric{background:var(--deep);border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:4px 0;font-size:12px}.metric b{color:var(--text)}.metric span{color:var(--muted);display:block}
+.trace{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;font:12px/1.4 ui-monospace,'Cascadia Mono',Menlo,monospace;color:#7dd3fc;max-height:180px;overflow:auto;display:none}
+.trace.on{display:block}.trace .fb{color:#fbbf24}.trace .ok{color:#34d399}.trace .t{color:var(--muted)}
+.badge{font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.pass{border-color:var(--green);color:#34d399}.badge.warn{border-color:var(--amber);color:#fbbf24}.badge.fail{border-color:#f87171;color:#fca5a5}
+.badge.run{border-color:var(--blue);color:#93c5fd}
+/* run + validation */
+.run{display:flex;gap:8px;flex-wrap:wrap}.run input{flex:1;min-width:240px;background:var(--deep);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font:inherit}
+.log{background:#090d16;border-radius:8px;font:12px/1.45 ui-monospace,Menlo,monospace;padding:12px;color:#38bdf8;max-height:260px;overflow:auto;margin-top:10px}
+.log .fb{color:#fbbf24}.log .ok{color:#34d399}.log .a{color:#a7f3d0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}.tile b{font-size:22px;display:block;font-variant-numeric:tabular-nums}.tile small{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+@media (max-width:1100px){.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);height:22px}}
+</style>
+</head>
+<body>
+<script src="nav.js"></script>
+<main>
+  <div class="bar" style="justify-content:space-between">
+    <div><h1>Data flow</h1><p class="sub">Free public sources land in Databricks bronze, are cleaned into silver, and published as gold. The 6 Nemotron agents and Jev read gold to score every home. Click an agent to see exactly which tables it reads.</p></div>
+    <div class="bar"><span class="chip" id="src">data source: …</span><span class="chip" id="dbx">Databricks: …</span><button class="ghost" id="refresh">Refresh counts</button></div>
+  </div>
+
+  <div class="flow" id="flow"></div>
+  <div class="legend"><span><i style="background:var(--blue)"></i>source</span><span><i style="background:var(--bronze)"></i>bronze (raw)</span><span><i style="background:var(--silver)"></i>silver (clean)</span><span><i style="background:var(--gold)"></i>gold (served)</span><span><i style="background:var(--red)"></i>secure (PII)</span><span><i style="background:var(--agent)"></i>Nemotron agent</span><span><i style="background:var(--jev)"></i>Jev</span><span>numbers = live row counts in Unity Catalog</span></div>
+
+  <h2>Trace a live run</h2>
+  <div class="run"><input id="dream" value="3 bed 2 bath under $500k in Raleigh, commute to downtown Raleigh under 25 minutes" aria-label="Buyer request"><button id="go">Run the 6 agents</button></div>
+  <div class="log" id="log" aria-live="polite"><span class="muted">Run a request to watch each agent call its tool on Nemotron, what it read and what it returned.</span></div>
+
+  <h2>What each agent reads, calls and returns</h2>
+  <div class="grid" id="agents"></div>
+
+  <h2>Latest validation in Databricks</h2>
+  <div class="tiles" id="tiles"></div>
+  <div class="card" style="margin-top:12px"><table><thead><tr><th>Category</th><th>Check</th><th>Status</th><th>Observed</th></tr></thead><tbody id="checks"><tr><td colspan="4" class="muted">loading…</td></tr></tbody></table></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>n==null?"–":Number(n).toLocaleString();
+let D=null, SEL=null;
+const tablesIn=list=>{const s=new Set();(list||[]).forEach(t=>{(String(t).match(/(bronze|silver|gold|secure)\.[a-z_]+/g)||[]).forEach(x=>s.add(x))});return s};
+const node=(cls,title,sub,n,data)=>`<div class="node ${cls}" ${data||""}>${n!=null?`<span class="n">${fmt(n)}</span>`:""}<b>${esc(title)}</b>${sub?`<small>${esc(sub)}</small>`:""}</div>`;
+
+function renderFlow(){
+  const c=(D.databricks||{}).counts||{}, L=D.layers;
+  const col=(h,body)=>`<div class="col"><h3>${h}</h3>${body}</div>`, arr='<div class="arrow" aria-hidden="true">→</div>';
+  const layer=k=>L[k].map(t=>node(k,t.table,t.about,c[k+"."+t.table],`data-t="${k}.${t.table}"`)).join("");
+  $("flow").innerHTML=[
+    col("Sources",D.sources.map(s=>node("src",s.name,s.what+(s.key?" · key: "+s.key:""),null,`data-to="${esc(s.to)}"`)).join("")),arr,
+    col("Bronze",layer("bronze")),arr,
+    col("Silver",layer("silver")+'<h3 style="margin-top:10px">Secure</h3>'+layer("secure")),arr,
+    col("Gold",layer("gold")),arr,
+    col("Agents (Nemotron)",D.agents.map(a=>node("agent",a.name,a.tool+" · "+(a.metrics.map(m=>m.label).join(", ")||"candidate homes"),null,`data-a="${a.key}" tabindex="0" role="button"`)).join("")),arr,
+    col("Jev + outputs",node("jev","Jev decision layer",D.jev.does)+D.outputs.map(o=>node("out",o)).join(""))
+  ].join("");
+  document.querySelectorAll(".node.agent").forEach(el=>{el.onclick=()=>select(el.dataset.a);el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();select(el.dataset.a)}}});
+  apply();
+}
+function select(key){SEL=SEL===key?null:key;apply()}
+function apply(){
+  const a=D.agents.find(x=>x.key===SEL), reads=a?tablesIn(a.data):null;
+  document.querySelectorAll(".node[data-t]").forEach(el=>{el.classList.toggle("hi",!!a&&reads.has(el.dataset.t));el.classList.toggle("dim",!!a&&!reads.has(el.dataset.t))});
+  document.querySelectorAll(".node.agent").forEach(el=>el.classList.toggle("sel",el.dataset.a===SEL));
+  document.querySelectorAll(".card[data-a]").forEach(el=>el.classList.toggle("sel",el.dataset.a===SEL));
+  if(a){const card=document.querySelector(`.card[data-a="${a.key}"]`); if(card&&window.innerWidth<1100)card.scrollIntoView({behavior:"smooth",block:"start"})}
+}
+function statusOf(checks){if(!checks.length)return "";const s=checks.some(c=>c.status==="fail")?"fail":checks.some(c=>c.status==="warn")?"warn":"pass";return s}
+function renderAgents(){
+  const li=xs=>`<ul>${xs.map(x=>`<li>${esc(x).replace(/((bronze|silver|gold|secure)\.[a-z_.]+)/g,"<code>$1</code>")}</li>`).join("")}</ul>`;
+  $("agents").innerHTML=D.agents.map(a=>{const st=statusOf(a.checks);return `<div class="card" data-a="${a.key}">
+    <h4><span>${esc(a.name)}</span><span class="badge" id="st-${a.key}">idle</span></h4>
+    <p class="q">Weight set by: “${esc(a.question)}”</p>
+    <dl class="io">
+      <dt>Buyer</dt><dd>${a.profile.map(p=>`<code>${esc(p)}</code>`).join(" ")}</dd>
+      <dt>Reads</dt><dd>${li(a.data)}</dd>
+      <dt>Calls</dt><dd><code>${esc(a.tool)}</code> on Nemotron (vLLM tool call)</dd>
+      <dt>Returns</dt><dd>${a.metrics.length?a.metrics.map(m=>`<div class="metric"><b>${esc(m.label)}</b> (0–100)<span>${esc(m.formula)}</span></div>`).join(""):"shortlist of listing ids that meet every must-have"}</dd>
+      <dt>Guards</dt><dd>${li(a.guards)}</dd>
+      ${a.checks.length?`<dt>Checked</dt><dd>${a.checks.map(c=>`<div><span class="badge ${esc(c.status)}">${esc(c.status)}</span> ${esc(c.check_name.split(": ").pop())} · ${esc(c.observed)}</div>`).join("")}</dd>`:""}
+    </dl><div class="trace" id="tr-${a.key}"></div></div>`}).join("")+
+    `<div class="card"><h4><span>Jev decision layer</span><span class="badge" id="st-jev">idle</span></h4><p class="q">Calibrated judgements on the same vLLM server</p>
+     <dl class="io"><dt>Reads</dt><dd>${li(D.jev.reads)}</dd><dt>Does</dt><dd>${esc(D.jev.does)}</dd><dt>Writes</dt><dd>${li(D.jev.writes)}</dd></dl><div class="trace" id="tr-jev"></div></div>`;
+  document.querySelectorAll(".card[data-a]").forEach(el=>el.onclick=e=>{if(!e.target.closest(".trace"))select(el.dataset.a)});
+}
+function renderValidation(){
+  const v=(D.databricks||{}).validation||{}, ev=((D.databricks||{}).eval||{}).metrics||{};
+  const checks=v.checks||[], by={};
+  checks.forEach(c=>{by[c.category]=by[c.category]||{pass:0,warn:0,fail:0};by[c.category][c.status]++});
+  const tiles=Object.entries(by).map(([k,v])=>`<div class="tile"><small>${esc(k)}</small><b>${v.pass}/${v.pass+v.warn+v.fail}</b><small>${v.fail?`<span style="color:#fca5a5">${v.fail} fail</span> · `:""}${v.warn?`${v.warn} warn`:"all pass"}</small></div>`);
+  const pct=k=>ev[k]!=null?Math.round(ev[k]*100)+"%":"–";
+  if(Object.keys(ev).length)tiles.push(`<div class="tile"><small>Filter extraction (Nemotron alone)</small><b>${pct("extraction.llm.exact_match")}</b><small>exact · shipped ${pct("extraction.merged.exact_match")}</small></div>`,
+    `<div class="tile"><small>Scoring agents on Nemotron</small><b>${fmt(ev["pipeline.scoring_agents_done"])}/${fmt(ev["pipeline.scoring_agents_total"])}</b><small>last eval run</small></div>`);
+  $("tiles").innerHTML=tiles.join("")||`<div class="tile"><small>Validation</small><b>–</b><small>${esc(v.error||"run scripts/architecture_validate.py")}</small></div>`;
+  const order={fail:0,warn:1,pass:2};
+  $("checks").innerHTML=checks.length?checks.slice().sort((a,b)=>order[a.status]-order[b.status]).map(c=>`<tr><td>${esc(c.category)}</td><td>${esc(c.check_name)}</td><td><span class="badge ${esc(c.status)}">${esc(c.status)}</span></td><td>${esc(c.observed)}${c.detail&&c.status!=="pass"?`<div class="muted">${esc(c.detail)}</div>`:""}</td></tr>`).join(""):`<tr><td colspan="4" class="muted">${esc(v.error||"No validation run yet.")}</td></tr>`;
+}
+function renderHeader(){
+  const s=D.data_source||{}, d=D.databricks||{};
+  $("src").className="chip "+(s.data_source==="databricks gold"?"ok":"warn");
+  $("src").textContent="agents read: "+(s.data_source||"local")+(s.gold_as_of?" · as of "+String(s.gold_as_of).slice(0,16).replace("T"," "):"");
+  $("dbx").className="chip "+(d.connected?"ok":"bad");
+  $("dbx").textContent=d.connected?`Databricks: ${d.catalog} · ${Object.keys(d.counts||{}).length} tables`:"Databricks: not connected";
+}
+async function load(refresh){
+  $("refresh").disabled=true;
+  try{const r=await fetch("api/pipeline-flow"+(refresh?"?refresh=true":"")); if(!r.ok){$("flow").innerHTML=`<div class="card">${esc((await r.json()).detail||"sign in as an admin or realtor")}</div>`;return}
+    D=await r.json(); renderHeader(); renderFlow(); renderAgents(); renderValidation();}
+  catch(e){$("flow").innerHTML=`<div class="card">Could not load: ${esc(e)}</div>`}
+  $("refresh").disabled=false;
+}
+// ---- live trace: stream /api/match and attach each event to the agent that produced it
+const KEY_OF=name=>{if(!D)return null;const a=D.agents.find(x=>x.name===name);return a?a.key:(/jev/i.test(name||"")?"jev":null)};
+function tr(key,html){const el=$("tr-"+key);if(!el)return;el.classList.add("on");el.insertAdjacentHTML("beforeend",`<div>${html}</div>`);el.scrollTop=el.scrollHeight}
+function st(key,cls,text){const el=$("st-"+key);if(el){el.className="badge "+cls;el.textContent=text}}
+function logl(html){$("log").insertAdjacentHTML("beforeend",`<div>${html}</div>`);$("log").scrollTop=$("log").scrollHeight}
+function onEvent(e){
+  const k=KEY_OF(e.agent);
+  switch(e.type){
+    case "start": logl(`<span class="ok">start</span> · model ${esc(e.health&&e.health.model)} · data: <b>${esc(e.data&&e.data.data_source)}</b>`); D.agents.forEach(a=>st(a.key,"run","waiting")); st("jev","run","waiting"); break;
+    case "profile": logl(`<span class="a">Buyer profile</span> ${esc(JSON.stringify(Object.fromEntries(Object.entries(e.profile).filter(([x])=>!["weights","summary","extracted"].includes(x)))))}`); st("listing","run","searching"); break;
+    case "llm": if(k){st(k,"run","Nemotron "+e.ms+" ms");tr(k,`<span class="t">nemotron ${e.ms} ms</span> → ${esc(e.tool_calls.join(", ")||"answer")}`)} logl(`<span class="a">${esc(e.agent)}</span> nemotron ${e.ms} ms ${esc(e.tool_calls.join(", "))}`); break;
+    case "tool": if(k)tr(k,`↳ <b>${esc(e.tool)}</b>(${esc(JSON.stringify(e.args)).slice(0,300)}) ${e.ms} ms → ${esc(typeof e.result_preview==="string"?e.result_preview:JSON.stringify(e.result_preview)).slice(0,300)}`); break;
+    case "fallback": if(k){tr(k,`<span class="fb">fallback: ${esc(e.reason)}</span>`)} logl(`<span class="fb">${esc(e.agent)}: ${esc(e.reason)}</span>`); break;
+    case "say": if(k)tr(k,`<span class="ok">“${esc(e.text)}”</span>`); break;
+    case "shortlist": st("listing","pass",e.ids.length+" homes"); tr("listing",`<span class="ok">shortlist: ${e.ids.length} homes from ${esc((e.sources||[]).join(", "))}</span>`); break;
+    case "no_match": st("listing","warn","no match"); tr("listing",`<span class="fb">${esc(e.text)}</span>`); break;
+    case "crew_agent": st(e.key,e.status==="done"?"pass":"warn",e.status+" · "+e.ms+" ms"); if(e.text)tr(e.key,`<span class="ok">${esc(e.text)}</span>`); break;
+    case "jev": st("jev",e.engine==="jev"?"pass":"warn",`${e.engine} · ${e.calls} calls`); tr("jev",`${e.calls} parallel calls in ${e.ms} ms (p50 ${e.p50_call_ms} ms)`); break;
+    case "matrix": logl(`<span class="ok">decision matrix</span> · ${e.rows.length} homes ranked · #1 ${esc(e.rows[0]?e.rows[0].listing.address+" (fit "+e.rows[0].total+")":"none")}`); break;
+    case "recommendation": logl(`<span class="a">JEB recommendation</span> ${esc(e.text)}`); break;
+    case "done": logl(`<b>finished in ${(e.ms/1000).toFixed(1)} s</b> · written to gold.agent_decisions + gold.match_results`); break;
+    case "error": logl(`<span class="fb">error: ${esc(e.message)}</span>`); break;
+  }
+}
+$("go").onclick=async()=>{
+  $("go").disabled=true; $("log").innerHTML=""; document.querySelectorAll(".trace").forEach(t=>{t.innerHTML="";t.classList.remove("on")});
+  try{const res=await fetch("api/match",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dream:$("dream").value,form:{}})});
+    if(!res.ok){logl(`<span class="fb">${esc((await res.json()).detail||res.status)}</span>`)}
+    else{const rd=res.body.getReader(),dec=new TextDecoder();let buf="";
+      for(;;){const {value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf("\n"))>=0){const line=buf.slice(0,i);buf=buf.slice(i+1);if(line.trim())try{onEvent(JSON.parse(line))}catch(_){}}}}
+  }catch(err){logl(`<span class="fb">${esc(err)}</span>`)}
+  $("go").disabled=false;
+};
+$("refresh").onclick=()=>load(true);
+load(false);
+</script>
+</body>
+</html>

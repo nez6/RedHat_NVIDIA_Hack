@@ -114,15 +114,15 @@ AGENTS = [
               "dedupes and drops sold, pending, off-market and incomplete records", "eval"),
     CrewAgent("safety", "Safety & Environment Agent", "How important is low crime rate and neighborhood stability?",
               "safety_score", ("safety", "environment"), "Raleigh PD / Cary PD incidents (FBI NIBRS categories), FEMA flood zones, "
-              "Open-Meteo air quality + weather extremes", "eval"),
+              "Open-Meteo air quality + NOAA ACIS weather extremes (via Databricks gold)", "eval"),
     CrewAgent("commute", "Commute & Location Agent", "What is your daily work location and target max commute time?",
-              "commute_score", ("commute",), "Google Maps Distance Matrix (when GOOGLE_MAPS_API_KEY is set) or drive-time estimate", "eval"),
+              "commute_score", ("commute",), "OpenRouteService drive time (ORS_API_KEY) or Google Maps Distance Matrix, else a distance-based estimate", "eval"),
     CrewAgent("budget", "Budget & Investment Agent", "Are you seeking cash flow, appreciation, or below-market value?",
-              "value_deal_score", ("deal", "forecast"), "FRED mortgage rates + FHFA house-price index, listing price vs "
-              "neighborhood price/sqft", "eval+rl"),
+              "value_deal_score", ("deal", "forecast"), "FRED mortgage rates + FHFA house-price index (Databricks gold), listing price vs "
+              "neighborhood price/sqft (Wake County sales)", "eval+rl"),
     CrewAgent("lifestyle", "Lifestyle & Amenities Agent", "Do you prefer vibrant urban living or suburban space and schools?",
-              "urban_city_score, school_score", ("urban", "school", "lifestyle"), "GreatSchools ratings from the Zillow listing, "
-              "walkability, distance to your urban hub, listing features", "eval"),
+              "urban_city_score, school_score", ("urban", "school", "lifestyle"), "NC DPI school proficiency (NCES locations), "
+              "EPA walkability, distance to your urban hub, listing features", "eval"),
     CrewAgent("property", "Property Condition Agent", "What is your tolerance for renovation, HOA fees and age of home?",
               "maintenance_score, room_layout_score", ("maintenance", "rooms"), "Zillow listing description + facts, year built, "
               "HOA disclosure, beds / baths / sqft", "eval"),

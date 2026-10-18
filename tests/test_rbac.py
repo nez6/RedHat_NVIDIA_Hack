@@ -137,3 +137,17 @@ def test_free_edition_grants_fall_back_to_workspace_group_members():
     assert any("TO `agent@example.com`" in s and "client_intake" in s for s in ran)
     assert {r["status"] for r in report if r["principal"] == "estatepulse_clients"} == {"workspace group has no members yet (add people, then re-run)"}
     assert "is_member('estatepulse_admins')" in " ".join(R.row_filter_sql())
+
+
+def test_pipeline_flow_page_for_admin_and_realtor_only():
+    c = TestClient(app)
+    assert c.get("/api/pipeline-flow").status_code == 401
+    login(c, "client")
+    assert c.get("/api/pipeline-flow").status_code == 403
+    c = TestClient(app)
+    login(c, "realtor")
+    d = c.get("/api/pipeline-flow").json()
+    assert [a["key"] for a in d["agents"]] == ["listing", "safety", "commute", "budget", "lifestyle", "property"]
+    assert any("gold.jev_ready_neighborhoods" in x for a in d["agents"] for x in a["data"])
+    assert d["databricks"]["connected"] is False and d["layers"]["gold"][0]["table"] == "jev_ready_neighborhoods"
+    assert c.get("/pipeline").status_code == 200

@@ -18,12 +18,12 @@ CATALOG_DEFAULT = "workspace"
 ROLES = {
     "admin": {
         "label": "Admin (tester)", "group": "estatepulse_admins", "home": "app",
-        "pages": {"app", "how", "value", "architecture", "start", "portal", "realtor_view", "client_view"},
+        "pages": {"app", "how", "value", "architecture", "pipeline", "start", "portal", "realtor_view", "client_view"},
         "permissions": {"match:run", "match:narrate", "listings:import", "intake:list", "intake:kickoff", "system:diagnostics"},
     },
     "realtor": {
         "label": "Realtor", "group": "estatepulse_realtors", "home": "realtor",
-        "pages": {"app", "how", "value", "start"},
+        "pages": {"app", "how", "value", "pipeline", "start"},
         "permissions": {"match:run", "match:narrate", "listings:import", "intake:list", "intake:kickoff"},
     },
     "client": {
