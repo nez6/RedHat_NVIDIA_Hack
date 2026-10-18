@@ -65,10 +65,27 @@ def test_decision_audit_is_best_effort(monkeypatch):
     wh = FakeWarehouse()
     rows = [{"listing": {"id": 1001}, "jev": {"verdict": "tour_now"}}]
     assert D.log_decision("nemotron", "rules", {"summary": "s", "weights": {"deal": 4}}, rows, client=D.Client(transport=wh))
-    assert "agent_decisions" in wh.calls[0]["statement"]
+    assert "agent_decisions" in wh.calls[0]["statement"] and "match_results" in wh.calls[1]["statement"]
     assert D.log_decision("m", "rules", {}, rows, client=D.Client(transport=FakeWarehouse(fail_on=("INSERT", "boom")))) is None
 
 
 def test_dry_run_cli_prints_sql(capsys):
     assert D.main(["--dry-run"]) == 0
     assert "CREATE SCHEMA IF NOT EXISTS" in capsys.readouterr().out
+
+
+def test_fred_full_history_and_eval_results_land_in_gold(monkeypatch):
+    snap = {"mortgage_30y": {"series_id": "MORTGAGE30US", "history": [["2026-10-01", 6.1]]}}
+    rows = D.fred_history(snap, years=1, fetch=lambda sid: [("2010-01-01", 5.0), ("2026-06-01", 6.4), ("2026-10-01", 6.1)])
+    assert [r["obs_date"] for r in rows] == ["2026-06-01", "2026-10-01"]  # cut to the window, full series not the 12-point snapshot
+    assert D.fred_history(snap, fetch=lambda sid: (_ for _ in ()).throw(OSError("offline")))[0]["value"] == 6.1  # snapshot fallback
+    wh = FakeWarehouse()
+    summary = {"model": "nemotron", "nemotron_ok": True, "extraction": {"merged": {"precision": 1.0, "recall": 1.0}},
+               "empty_data": {"passed": 3, "cases": 3}}
+    detail = {"extraction": [{"prompt": "3 bed under 450k", "expected": {"min_beds": 3}, "llm": {"min_beds": 3}, "merged": {"min_beds": 3},
+                              "llm_score": {"exact": True}, "merged_score": {"exact": True}, "llm_ms": 120}],
+              "empty_data": [{"prompt": "x", "recommendation": "Would you like to", "pass": True, "secs": 1.0}]}
+    eid = D.log_eval(summary, detail, client=D.Client(transport=wh))
+    sql = "\n".join(stmts(wh))
+    assert eid.startswith("eval-") and "agent_eval_runs" in sql and "agent_eval_cases" in sql and "match_results" in sql
+    assert "'nemotron', true" in sql

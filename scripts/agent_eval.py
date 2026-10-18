@@ -128,7 +128,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--out", default=os.path.join(ROOT, "results", "agent_eval.json"))
+    ap.add_argument("--no-databricks", action="store_true", help="don't write results to Unity Catalog")
     a = ap.parse_args(argv)
+    os.environ.setdefault("EP_DECISION_SOURCE", "eval")  # pipeline runs below are tagged as eval in gold.agent_decisions
     h = AG.health()
     report = {"model": h.get("model"), "nemotron_ok": h["ok"], "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     report["extraction"], ext_rows = eval_extraction()
@@ -140,6 +142,13 @@ def main(argv=None):
     with open(a.out, "w") as f:
         json.dump({"summary": report, "detail": detail}, f, indent=1)
     print(json.dumps(report, indent=1))
+    from pipeline import databricks_sink as D
+    if D.configured() and not a.no_databricks:
+        try:
+            eid = D.log_eval(report, detail)
+            print(f"Databricks: {D.catalog()}.estatepulse_gold.agent_eval_runs / agent_eval_cases, eval_id={eid}")
+        except Exception as e:
+            print(f"Databricks write failed: {str(e)[:200]}")
     return 0
 
 

@@ -103,13 +103,27 @@ def ddl(c):
         decision_id STRING, run_id STRING, model STRING, jev_engine STRING, profile_summary STRING, weights STRING,
         top_listing_ids STRING, verdicts STRING, decided_at TIMESTAMP)
         COMMENT 'Audit trail of AI recommendations (which model, which weights, what was recommended).'""")
+    c.sql(f"""CREATE TABLE IF NOT EXISTS {fq('gold', 'match_results')} (
+        decision_id STRING COMMENT 'joins gold.agent_decisions', source STRING COMMENT 'app or eval', rank INT, listing_id BIGINT,
+        address STRING, neighborhood STRING, price BIGINT, fit_score DOUBLE COMMENT 'weighted decision-matrix total 0-100',
+        scores STRING COMMENT 'JSON: the 10 criterion scores', jev_verdict STRING, monthly_payment BIGINT, decided_at TIMESTAMP)
+        COMMENT 'Every home Nemotron + the decision matrix ranked, per recommendation.'""")
+    c.sql(f"""CREATE TABLE IF NOT EXISTS {fq('gold', 'agent_eval_runs')} (
+        eval_id STRING, model STRING, nemotron_ok BOOLEAN, metric STRING COMMENT 'e.g. extraction.merged.precision', value DOUBLE,
+        detail STRING, evaluated_at TIMESTAMP)
+        COMMENT 'scripts/agent_eval.py results against live Nemotron: one row per metric per run (long format for charts).'""")
+    c.sql(f"""CREATE TABLE IF NOT EXISTS {fq('gold', 'agent_eval_cases')} (
+        eval_id STRING, suite STRING COMMENT 'extraction | empty_data | pipeline', prompt STRING, expected STRING, nemotron_output STRING,
+        shipped_output STRING, nemotron_exact BOOLEAN, shipped_pass BOOLEAN, latency_ms BIGINT, evaluated_at TIMESTAMP)
+        COMMENT 'Per-case agent eval results: what Nemotron returned vs what the shipped (guarded) pipeline used.'""")
 
 
 def governance(c):
     for t in [("bronze", "fred_observations"), ("bronze", "neighborhood_snapshots"), ("bronze", "listings_raw"),
               ("silver", "neighborhood_risk"), ("silver", "macro_latest"), ("gold", "listing_scores"),
-              ("gold", "listing_scorecard"), ("gold", "pipeline_audit"), ("gold", "agent_decisions")]:
-        kind = "VIEW" if t[1] == "listing_scorecard" else "TABLE"
+              ("gold", "listing_scorecard"), ("gold", "pipeline_audit"), ("gold", "agent_decisions"), ("gold", "fred_series"),
+              ("gold", "match_results"), ("gold", "agent_eval_runs"), ("gold", "agent_eval_cases")]:
+        kind = "VIEW" if t[1] in ("listing_scorecard", "fred_series") else "TABLE"
         tags = ", ".join(f"'{k}' = '{v}'" for k, v in {**TAGS, "layer": t[0]}.items())
         c.sql(f"ALTER {kind} {fq(*t)} SET TAGS ({tags})", ignore=("not supported", "NOT_SUPPORTED", "PERMISSION"))
     for name, cond in [("safety_index_range", "safety_index IS NULL OR safety_index BETWEEN 0 AND 100"),
@@ -143,6 +157,10 @@ def silver_gold(c):
         SELECT name, series_id, obs_date, value FROM (
           SELECT *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY obs_date DESC, ingested_at DESC) AS rn
           FROM {fq('bronze', 'fred_observations')}) WHERE rn = 1""")
+    c.sql(f"""CREATE OR REPLACE VIEW {fq('gold', 'fred_series')}
+        COMMENT 'FRED macro data (mortgage rates, Triangle house-price indexes, unemployment): one row per series and date, latest ingest wins' AS
+        SELECT name, series_id, obs_date, value, ingested_at FROM {fq('bronze', 'fred_observations')}
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY series_id, obs_date ORDER BY ingested_at DESC) = 1""")
     c.sql(f"""CREATE OR REPLACE VIEW {fq('gold', 'listing_scorecard')}
         COMMENT 'One row per listing: facts + live risk indexes + the 10 sub-scores (latest run)' AS
         WITH s AS (SELECT * FROM {fq('gold', 'listing_scores')} WHERE run_id = (SELECT max_by(run_id, scored_at) FROM {fq('gold', 'listing_scores')}))
@@ -164,10 +182,32 @@ def _insert_json(c, table, rows, schema_ddl, select_cols):
     return len(rows)
 
 
+def fred_history(snapshot, years=None, fetch=None):
+    """Full FRED history (default 10 years, FRED_HISTORY_YEARS) straight from FRED's keyless CSV; falls back to the
+    12-point history kept in data/live/fred.json when FRED can't be reached."""
+    from .sources import fred
+    years = int(years or os.getenv("FRED_HISTORY_YEARS", "10"))
+    cutoff = (dt.date.today() - dt.timedelta(days=365 * years)).isoformat()
+    obs = []
+    live = fetch or (fred.fetch_series if os.getenv("FRED_FULL_HISTORY", "1") != "0" else None)
+    for name, s in snapshot.items():
+        try:
+            if not live:
+                raise ValueError("full history disabled")
+            rows = live(s["series_id"])
+            rows = [(d, v) for d, v in rows if d >= cutoff]
+            if not rows:
+                raise ValueError("empty")
+        except Exception:
+            rows = s.get("history", [])
+        obs += [{"series_id": s["series_id"], "name": name, "obs_date": d, "value": v} for d, v in rows]
+    return obs
+
+
 def load(c, run_id, now):
     counts = {}
     fred = _load("fred.json")["series"]
-    obs = [{"series_id": s["series_id"], "name": k, "obs_date": d, "value": v} for k, s in fred.items() for d, v in s.get("history", [])]
+    obs = fred_history(fred)
     counts["fred_observations"] = _insert_json(
         c, fq("bronze", "fred_observations"), obs, "ARRAY<STRUCT<series_id:STRING,name:STRING,obs_date:STRING,value:DOUBLE>>",
         f"r.series_id, r.name, to_date(r.obs_date), r.value, '{run_id}', TIMESTAMP '{now}'")
@@ -226,10 +266,11 @@ def sync(client=None, dry_run=False, actor=None):
     return {"run_id": run_id, "catalog": catalog(), "counts": counts, "statements": len(c.log)}
 
 
-def log_decision(model, jev_engine, profile, rows, client=None):
-    """Append one AI recommendation to gold.agent_decisions (best effort; never raises)."""
+def log_decision(model, jev_engine, profile, rows, client=None, source=None):
+    """Append one AI recommendation to gold.agent_decisions + its ranked homes to gold.match_results (best effort; never raises)."""
     if not (client or configured()):
         return None
+    source = source or os.getenv("EP_DECISION_SOURCE", "app")
     try:
         c = client or Client()
         now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -239,10 +280,59 @@ def log_decision(model, jev_engine, profile, rows, client=None):
                 "verdicts": json.dumps({str(r["listing"]["id"]): (r.get("jev") or {}).get("verdict") for r in rows[:5]})}]
         _insert_json(c, fq("gold", "agent_decisions"), rec,
                      "ARRAY<STRUCT<decision_id:STRING,model:STRING,jev_engine:STRING,profile_summary:STRING,weights:STRING,top_listing_ids:STRING,verdicts:STRING>>",
-                     f"r.decision_id, 'app', r.model, r.jev_engine, r.profile_summary, r.weights, r.top_listing_ids, r.verdicts, TIMESTAMP '{now}'")
+                     f"r.decision_id, '{source}', r.model, r.jev_engine, r.profile_summary, r.weights, r.top_listing_ids, r.verdicts, TIMESTAMP '{now}'")
+        try:  # ranked homes: separate insert so a bad row never loses the decision itself
+            ranked = [{"rank": i + 1, "listing_id": r["listing"].get("id"), "address": r["listing"].get("address"),
+                       "neighborhood": r["listing"].get("neighborhood"), "price": r["listing"].get("price"), "fit": r.get("total"),
+                       "scores": json.dumps(r.get("scores") or {}), "verdict": (r.get("jev") or {}).get("verdict"),
+                       "monthly": (r.get("finance") or {}).get("monthly_total")} for i, r in enumerate(rows[:10])]
+            _insert_json(c, fq("gold", "match_results"), ranked,
+                         "ARRAY<STRUCT<rank:INT,listing_id:BIGINT,address:STRING,neighborhood:STRING,price:BIGINT,fit:DOUBLE,scores:STRING,verdict:STRING,monthly:BIGINT>>",
+                         f"'{rec[0]['decision_id']}', '{source}', r.rank, r.listing_id, r.address, r.neighborhood, r.price, r.fit, r.scores, "
+                         f"r.verdict, r.monthly, TIMESTAMP '{now}'")
+        except Exception:
+            pass
         return rec[0]["decision_id"]
     except Exception:
         return None
+
+
+def _safe(v):
+    """Literal-safe identifier text for values we inline into SQL (model names)."""
+    import re
+    return re.sub(r"[^A-Za-z0-9_.:/-]", "", str(v or "unknown"))[:80]
+
+
+def log_eval(summary, detail, client=None):
+    """scripts/agent_eval.py results -> gold.agent_eval_runs (one row per metric) + gold.agent_eval_cases. Returns eval_id."""
+    c = client or Client()
+    ddl(c)
+    eval_id = "eval-" + dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
+    now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    metrics = []
+    for suite in ("extraction", "empty_data", "pipeline"):
+        block = summary.get(suite) or {}
+        for k, v in block.items():
+            if isinstance(v, dict):
+                metrics += [{"metric": f"{suite}.{k}.{m}", "value": float(x), "detail": ""} for m, x in v.items() if isinstance(x, (int, float))]
+            elif isinstance(v, (int, float)) and not isinstance(v, bool):
+                metrics.append({"metric": f"{suite}.{k}", "value": float(v), "detail": ""})
+    _insert_json(c, fq("gold", "agent_eval_runs"), metrics, "ARRAY<STRUCT<metric:STRING,value:DOUBLE,detail:STRING>>",
+                 f"'{eval_id}', '{_safe(summary.get('model'))}', {'true' if summary.get('nemotron_ok') else 'false'}, r.metric, r.value, r.detail, "
+                 f"TIMESTAMP '{now}'")
+    cases = [{"suite": "extraction", "prompt": r["prompt"], "expected": json.dumps(r["expected"]), "nemotron": json.dumps(r["llm"]),
+              "shipped": json.dumps(r["merged"]), "n_exact": r["llm_score"]["exact"], "pass": r["merged_score"]["exact"], "ms": r["llm_ms"]}
+             for r in detail.get("extraction", [])]
+    cases += [{"suite": "empty_data", "prompt": r["prompt"], "expected": "no_match + relax suggestion", "nemotron": "",
+               "shipped": r["recommendation"], "n_exact": None, "pass": r["pass"], "ms": int(r["secs"] * 1000)} for r in detail.get("empty_data", [])]
+    cases += [{"suite": "pipeline", "prompt": r["prompt"], "expected": "all checks true", "nemotron": r["recommendation"],
+               "shipped": json.dumps(r["checks"]), "n_exact": None,
+               "pass": all(v is True or (isinstance(v, str) and v.split("/")[0] == v.split("/")[-1]) for v in r["checks"].values()),
+               "ms": int(r["secs"] * 1000)} for r in detail.get("pipeline", [])]
+    _insert_json(c, fq("gold", "agent_eval_cases"), cases,
+                 "ARRAY<STRUCT<suite:STRING,prompt:STRING,expected:STRING,nemotron:STRING,shipped:STRING,n_exact:BOOLEAN,pass:BOOLEAN,ms:BIGINT>>",
+                 f"'{eval_id}', r.suite, r.prompt, r.expected, r.nemotron, r.shipped, r.n_exact, r.pass, r.ms, TIMESTAMP '{now}'")
+    return eval_id
 
 
 def check():

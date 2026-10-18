@@ -494,3 +494,15 @@ The crew is tested against three failure modes. The tests in `tests/test_agent_q
 | **Parameter extraction**: natural language to `find_listings` parameters | `app/extract.py` parses the request two ways, with a rule-based parser and with Nemotron (a forced `set_search_filters` tool call), and merges the results. Numbers come from the rule parser. Nemotron fills in only the gaps, and only with values that appear in the buyer's own words. Every value is range-checked. Form fields override the text. | 12 labelled requests (`tests/fixtures/extraction_cases.json`), scored field by field for precision, recall and exact match, for Nemotron alone, the rules alone, and the merged result |
 | **Missing data**: zero matches | Every candidate home is checked against the buyer's must-haves (price, beds, baths), whatever arguments the model passed to the tool. The area may be widened, but the must-haves never are. With zero matches the pipeline stops with `no_match` and a question such as "Would you like to raise the budget to about $X?", where X is computed from real listings. The narrator is never asked to describe an empty list, and a narration that names an address not in the results is replaced. | Impossible requests end with zero homes, no scoring and a suggestion to relax a criterion. A simulated narrator that invents "742 Evergreen Terrace" is caught. |
 | **Normalization**: messy feeds | `pipeline/listings.py` converts values such as `$1.2M`, `515K`, `2,300 sqft`, `4 bd`, `Studio`, `Active` and `Condo/Co-op`. It fixes ZIP+4 codes, ALL-CAPS addresses, missing minus signs on longitudes and impossible build years. When records are duplicates, the richer one wins and its gaps are filled from the other. | A messy batch comes out fully typed; sold, incomplete and duplicate records are counted in the quality report |
+
+## Databricks: where the data lives (catalog `workspace`)
+
+| Table | What it holds |
+|---|---|
+| `estatepulse_gold.fred_series` (view) | FRED macro data for the last 10 years: 30- and 15-year mortgage rates, Raleigh and Durham house-price indexes, Raleigh unemployment. Raw rows are in `estatepulse_bronze.fred_observations`; the latest value per series is in `estatepulse_silver.macro_latest`. |
+| `estatepulse_gold.agent_decisions` | One row per recommendation (model, weights, top homes). The `run_id` column is `app` or `eval`. |
+| `estatepulse_gold.match_results` | Every home each recommendation ranked: rank, fit score, the 10 criterion scores, Jev verdict, monthly payment. |
+| `estatepulse_gold.agent_eval_runs` | `scripts/agent_eval.py` results against live Nemotron, one row per metric per run (extraction precision and recall, no-match handling, agents that finished on Nemotron). |
+| `estatepulse_gold.agent_eval_cases` | Per-test-case results: what Nemotron returned vs what the shipped pipeline used. |
+
+Refresh with `python -m pipeline.databricks_sink`, which pulls the full FRED history (`FRED_HISTORY_YEARS`, default 10), and `python scripts/agent_eval.py`, which writes to Databricks automatically; `--no-databricks` skips that.

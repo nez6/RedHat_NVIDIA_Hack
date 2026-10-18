@@ -19,6 +19,7 @@ os.environ["REDFIN_SAVED_DIR"] = os.path.join(_TMP, "redfin")
 os.environ["LISTINGS_ENRICH"] = "0"  # enrichment calls public APIs; tests inject fakes instead
 os.environ["WEATHER_SOURCE"] = "acis"
 os.environ["CITY_DIR"] = os.path.join(_TMP, "cities")
+os.environ["FRED_FULL_HISTORY"] = "0"  # Databricks sync uses the committed 12-point snapshot in tests
 os.environ["CITY_LOOKUP"] = "off"  # live city lookups call public APIs; tests turn it on with a fake builder
 os.environ.pop("ORS_API_KEY", None)
 for k in ("RENTCAST_API_KEY", "GOOGLE_MAPS_API_KEY", "DATABRICKS_HOST", "DATABRICKS_TOKEN", "ADMIN_TOKEN"):
