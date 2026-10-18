@@ -167,6 +167,8 @@ env/bin/python -m pytest -q                # 189 tests, no GPU or network needed
 
 ## Data sources and provenance
 
+**The full list of all 25 ingestion pieces** (endpoint, key, code file, the Databricks table it lands in, which agent uses it, and how to refresh it): **[docs/DATA_INGESTION.md](docs/DATA_INGESTION.md)**.
+
 | Data | Source | How it is used |
 |---|---|---|
 | Mortgage rates, FHFA house-price index, unemployment | FRED (St. Louis Fed), keyless CSV, 10 years | Budget & Investment agent; `gold.jev_ready_macro` |
