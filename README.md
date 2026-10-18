@@ -8,6 +8,77 @@ EstatePulse AI is an agentic real estate matching engine built to eliminate the 
 
 *Built during the NVIDIA x Red Hat Small Models Hack (Raleigh, NC | Oct 17–18, 2026).*
 
+## For the judges: start here
+
+**What it is:** six Nemotron agents running on vLLM, each calling one tool, turn a home buyer's request into ranked homes. Jev, our decision layer, makes a calibrated tour / consider / skip call on each home. All the data is free and public, governed in Databricks Unity Catalog, and every agent is tested with NeMo Gym.
+
+**How we meet each challenge** (all numbers are from live runs on 18 Oct 2026):
+
+| Challenge | How we answer it | Proof | Where to look |
+|---|---|---|---|
+| Small model (≤33B) doing real tool calling | Nemotron 3.5 Lightning 30B-A3B (about 3B active parameters) on vLLM. Six agents, each owning one tool; the five scoring agents run in parallel. | All 15 scoring-agent runs finished on Nemotron. The listing agent passed the buyer's filters to its search tool exactly in 4 of 4 test cases. | `app/agents.py`, `app/metric_agents.py`, `/testlab` |
+| Turning plain English into exact tool arguments | A rule-based parser and a forced Nemotron tool call are merged. Numbers come from the parser, and a value from the model is kept only if it appears in the buyer's own words. | The shipped extractor got 12 of 12 test requests exactly right; Nemotron alone got 9 of 12. The check also caught the model inventing a location ("Durham" from "near Duke") and a bedroom count (3 from "family of four"). | `app/extract.py`, `scripts/agent_eval.py` |
+| No made-up homes, and graceful empty results | Every home is checked against the must-haves, whatever arguments the model sent. With zero matches the app says "Would you like to raise the budget to about $X?", where X is computed from real listings. A write-up that names an address not in the results is replaced. | 3 of 3 impossible requests returned no homes plus a useful suggestion. A simulated write-up that invented "742 Evergreen Terrace" was caught. | `tests/test_agent_quality.py` |
+| Calculation errors | Python computes every number: payments, ratios, discounts, forecasts and the 10 scores. The agents and Jev only judge. Jev reads one constrained answer and its token probabilities, so its confidence is calibrated. | Scores computed from Databricks gold equal scores computed locally (maximum difference 0 across every home and all 10 criteria), and Jev agrees with the local results at least as well as with its own re-run. | `app/metrics.py`, `app/jev.py`, `scripts/architecture_validate.py` |
+| Agent evaluation with NeMo Gym | A NeMo Gym environment with reward functions per agent, used for evaluation runs, reward-scored training samples, and the prompt test lab. See the next section. | Prompt changes found with the Gym reward took 4 of 5 scoring agents from 0–50% to 100% pass. | `resources_servers/estatepulse`, `/testlab` |
+| Data governance | Databricks bronze → silver → gold layers in Unity Catalog, with tags, CHECK constraints, lineage, audit tables, three-role access control and a row filter on personal data. The live app reads gold. | 41 of 41 workspace data-quality checks pass, and gold matches the app's local data exactly. | `pipeline/databricks_sink.py`, `app/gold.py`, `/pipeline` |
+| Reliability | Every outside service has a fallback, and a failure-injection demo shows the recovery. | 189 automated tests run in CI and inside the Docker image, plus the live evaluation and validation scripts. | `tests/`, `.github/workflows/` |
+
+**Honest gaps.**
+- **Commute** uses estimated drive times until an `ORS_API_KEY` is added; the free key is pending.
+- **Durham and Chapel Hill** have no live police feed, so they use a fixed default safety rating.
+- **The Safety & Environment agent** passes 50% in the test lab; see below.
+- **No fine-tuning:** we did not train model weights. The RL samples are collected and ready for a training run.
+
+> Further down this README is the build history. Where an older section says 10 or 14 agents, it describes the earlier design; the shipped crew is the six agents above.
+
+## How NeMo Gym made the agents better
+
+NeMo Gym is our referee. `resources_servers/estatepulse` is a NeMo Gym resources server, and `rewards.py` holds the reward functions:
+- **Scoring agents:** half the reward for calling the agent's tool with every shortlisted home, half for naming the same best home as the deterministic math.
+- **Deal and Forecast:** graded against the computed answer.
+
+We used it in three rounds. Each round changed the system, not the model's weights.
+
+**1. Baseline on 17 Oct, earlier 10-agent design** (`results/gym/`). There were 8 evaluation sets of 8 tasks each, plus 48 reward-scored samples each for the Deal and Forecast tasks:
+
+| Agent | Mean reward | Pass rate |
+|---|---|---|
+| Commute, Environment, Lifestyle, Maintenance, Rooms | 1.00 | 100% |
+| Safety, School, Urban | 0.94 | 88% |
+| Deal (pick the best deal) | 0.88 | 79% |
+| Forecast (state a 12-month % as a number) | 0.96 | **63%** |
+
+The two tasks that asked the model to produce a number scored lowest. That confirmed the rule the shipped system follows: **the model never does arithmetic.** Python computes the payments, the discount against the neighborhood price per sq ft, and the forecast. The agents and Jev receive those numbers as facts and only judge. This is what keeps calculation errors out of Jev's decisions: every input Jev weighs (monthly payment, housing ratio, % above or below the area price, commute minutes, safety index) is computed and validated before Jev sees it.
+
+**2. Plain-English filters to tool arguments** (`scripts/agent_eval.py`), on 12 labelled requests:
+
+| Extractor | Exact match | Precision | Recall |
+|---|---|---|---|
+| Nemotron alone | 75% | 0.89 | 0.98 |
+| Shipped (rules + Nemotron, grounded in the buyer's words) | **100%** | **1.00** | **1.00** |
+
+**3. Prompt test lab** (`/testlab`): the same Gym `eval_reward`, run on the six-agent crew over 4 fixed buyers on live Nemotron. Every run is stored in `gold.agent_test_runs`.
+
+| Agent | Current prompt (pass rate) | + "finish with `ANSWER: <listing_id>`" |
+|---|---|---|
+| Zillow Listing | 100% | — |
+| Commute & Location | 0% | **100%** |
+| Budget & Investment | 50% | **100%** |
+| Lifestyle & Amenities | 0% | **100%** |
+| Property Condition | 25% | **100%** |
+| Safety & Environment | 0% | 50% (open finding: it weighs safety over environment on 2 buyers) |
+
+Every agent already called its tool on every home. They lost points only because they never stated a single, checkable answer. The Gym reward made that visible within a minute, and one sentence in each prompt fixed it.
+
+**How this helps Jev decide.** Jev's verdicts are only as good as the evidence it receives. NeMo Gym checks three things before that evidence reaches the decision matrix:
+- each agent sees every home;
+- each agent's pick agrees with the computed scores;
+- no number was produced by the model.
+
+Our validation then confirms that Jev reads the same values from Databricks gold as the app computed locally.
+
+
 ---
 
 ## Key Features
@@ -235,7 +306,7 @@ task) for the **Value/Forecast** and **Deal Calculator** agents. Results land in
 
 | Criterion | What we show | Where |
 |---|---|---|
-| Tool calling (Track 3) | 14 Nemotron agents; 10 specialist agents each with its own tool and a CI-enforced registry check | `app/metric_agents.py`, `/api/agents` |
+| Tool calling (Track 3) | 6 Nemotron agents, each with its own tool, and a CI-enforced registry check (see "For the judges" at the top) | `app/metric_agents.py`, `/api/agents` |
 | Nemotron + vLLM | Nemotron 3.5 Lightning (30B total / ~3B active, FP8) on vLLM with tool + reasoning parsers | `start_nemotron.sh` |
 | **Data governance** | Data contracts with last-good fallback; Unity Catalog medallion with lineage, tags, CHECK constraints, pipeline and AI-decision audit tables; no PII; provenance shown next to every score | `pipeline/`, `pipeline/databricks_sink.py` |
 | **Design** | Decision-matrix heatmap, live per-agent telemetry, verdict badges, light/dark themes, mobile layout, plain-English explanation of every score | `/`, `/architecture` |
