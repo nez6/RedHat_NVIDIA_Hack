@@ -3,7 +3,7 @@
 (function () {
   var pages = [
     ["start", "Home Match Toolkit", "start"], ["app", "Find a home", "app"], ["value", "Free value calculator", "value"],
-    ["how", "How we score", "how"], ["pipeline", "Data flow", "pipeline"], ["architecture", "Architecture", "architecture"],
+    ["how", "How we score", "how"], ["pipeline", "Data flow", "pipeline"], ["testlab", "Agent test lab", "testlab"], ["architecture", "Architecture", "architecture"],
     ["./?view=realtor", "Realtor workspace", "realtor_view"], ["./?view=client", "Client portal", "client_view"]
   ];
   var here = location.pathname.replace(/\/+$/, "").split("/").pop();

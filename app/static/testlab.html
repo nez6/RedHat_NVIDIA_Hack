@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EstatePulse AI — Agent test lab</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--deep:#0b1220;--line:#334155;--text:#f8fafc;--muted:#94a3b8;--green:#10b981;--blue:#3b82f6;--amber:#f59e0b;--red:#f87171}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 'Segoe UI',system-ui,-apple-system,sans-serif}
+.topnav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 20px;background:var(--deep);border-bottom:1px solid var(--line)}
+.topnav .brand{font-weight:700;color:var(--text);text-decoration:none;margin-right:12px}
+.topnav a.tab{padding:5px 12px;border-radius:99px;color:var(--muted);text-decoration:none;font-size:13.5px}
+.topnav a.tab:hover{color:var(--text);background:var(--card)}.topnav a.tab.on{background:var(--green);color:#062016;font-weight:600}
+main{max-width:1440px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:22px;margin:4px 0}h2{font-size:16px;margin:24px 0 10px}.sub{color:var(--muted);margin:0 0 16px}
+.layout{display:grid;grid-template-columns:420px 1fr;gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+label{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px}
+select,input,textarea{width:100%;background:var(--deep);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font:inherit}
+textarea{min-height:230px;font:12.5px/1.45 ui-monospace,Menlo,monospace;resize:vertical}
+.checks{display:flex;flex-direction:column;gap:6px}.checks label{display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:13.5px;color:var(--text);margin:0}
+.checks input{width:auto}
+.row{display:flex;gap:10px;align-items:end}.row>div{flex:1}
+button{background:var(--blue);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;cursor:pointer}button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+button:disabled{opacity:.5;cursor:default}
+.hint{color:var(--muted);font-size:12.5px;margin-top:8px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.tile{background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:10px 12px}.tile b{font-size:22px;display:block;font-variant-numeric:tabular-nums}.tile small{color:var(--muted)}
+.tile.pass{border-color:var(--green)}.tile.fail{border-color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}td,th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-weight:600;white-space:nowrap}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge{font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.pass{border-color:var(--green);color:#34d399}.badge.fail{border-color:var(--red);color:#fca5a5}.badge.def{border-color:var(--blue);color:#93c5fd}
+details summary{cursor:pointer;color:#93c5fd}pre{white-space:pre-wrap;word-break:break-word;background:var(--deep);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:11.5px;margin:6px 0 0;max-height:220px;overflow:auto}
+.scroll{overflow-x:auto}.muted{color:var(--muted)}
+.status{margin-top:10px;color:var(--muted);min-height:20px}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<script src="static/nav.js"></script>
+<main>
+  <h1>Agent test lab</h1>
+  <p class="sub">Pick an agent, edit its prompt, run it on live Nemotron over fixed buyer scenarios. Each run is scored on the agent’s KPIs and validated with the NeMo Gym reward function (pass ≥ 0.75). Every run is saved and compared below.</p>
+  <div class="layout">
+    <div class="card">
+      <label for="agent">Agent</label><select id="agent"></select>
+      <label for="prompt">System prompt <span id="pdef" class="badge def">default</span></label>
+      <textarea id="prompt" spellcheck="false"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="ghost" id="reset">Reset to default</button></div>
+      <div class="row"><div><label for="label">Variant label</label><input id="label" value="default" maxlength="60"></div><div style="flex:0 0 90px"><label for="repeats">Repeats</label><input id="repeats" type="number" min="1" max="5" value="1"></div></div>
+      <label>Scenarios</label><div class="checks" id="scen"></div>
+      <div style="margin-top:14px"><button id="run">Run on Nemotron</button></div>
+      <div class="status" id="status" aria-live="polite"></div>
+      <div class="hint" id="kpidefs"></div>
+    </div>
+    <div>
+      <div class="card"><h2 style="margin-top:0">Latest run</h2><div class="tiles" id="tiles"><div class="tile"><small>No run yet</small><b>–</b></div></div>
+        <div class="scroll" style="margin-top:12px"><table><thead id="lhead"></thead><tbody id="lbody"></tbody></table></div></div>
+      <h2>Leaderboard: agent × prompt variant</h2>
+      <div class="card scroll"><table><thead><tr><th>Agent</th><th>Variant</th><th>Runs</th><th>Pass rate</th><th>Mean reward</th><th>KPI means</th><th>Last run</th></tr></thead><tbody id="board"></tbody></table></div>
+      <h2>All runs</h2>
+      <div class="card scroll"><table><thead><tr><th>When</th><th>Agent</th><th>Variant</th><th>Scenario</th><th>Reward</th><th>KPIs</th><th>Output</th></tr></thead><tbody id="hist"></tbody></table></div>
+    </div>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let S=null;
+const pct=v=>v==null?"–":Math.round(v*100)+"%";
+const fmtK=(k,v)=>k==="latency_ms"?(v/1000).toFixed(1)+" s":k==="homes"?Math.round(v):typeof v==="boolean"?(v?"yes":"no"):(v<=1?pct(v):v);
+const kpiText=k=>Object.entries(k||{}).map(([a,b])=>`${a.replace(/_/g," ")} ${fmtK(a,b)}`).join(" · ");
+function agentOf(k){return S.agents.find(a=>a.key===k)}
+function syncDefault(){const a=agentOf($("agent").value);const d=$("prompt").value.trim()===a.default_prompt.trim();$("pdef").textContent=d?"default":"edited";$("pdef").className="badge "+(d?"def":"fail")}
+function pickAgent(){const a=agentOf($("agent").value);$("prompt").value=a.default_prompt;syncDefault();
+  $("kpidefs").innerHTML="<b>KPIs</b><br>"+a.kpis.map(k=>`<code>${esc(k.key)}</code> ${esc(k.about)}`).join("<br>")+"<br><b>Validator</b> "+esc(S.validator)}
+function renderLatest(res){
+  const s=res.summary||{};
+  const tiles=[`<div class="tile ${s.pass_rate>=.75?"pass":"fail"}"><small>NeMo Gym pass rate</small><b>${pct(s.pass_rate)}</b><small>${s.runs} runs</small></div>`,
+    `<div class="tile"><small>Mean reward</small><b>${(s.mean_reward??0).toFixed(2)}</b><small>0–1</small></div>`]
+    .concat(Object.entries(s.kpis||{}).map(([k,v])=>`<div class="tile"><small>${esc(k.replace(/_/g," "))}</small><b>${esc(fmtK(k,v))}</b></div>`));
+  if(s.errors)tiles.push(`<div class="tile fail"><small>errors</small><b>${s.errors}</b></div>`);
+  $("tiles").innerHTML=tiles.join("");
+  const keys=Object.keys((res.rows[0]||{}).kpis||{});
+  $("lhead").innerHTML=`<tr><th>Scenario</th><th>Reward</th>${keys.map(k=>`<th>${esc(k.replace(/_/g," "))}</th>`).join("")}<th>Gym detail · output</th></tr>`;
+  $("lbody").innerHTML=res.rows.map(r=>`<tr><td>${esc(r.scenario)}${r.repeat>1?" #"+r.repeat:""}</td><td class="num"><span class="badge ${r.gym_pass?"pass":"fail"}">${r.gym_reward.toFixed(2)} ${r.gym_pass?"pass":"fail"}</span></td>
+    ${keys.map(k=>`<td class="num">${esc(fmtK(k,r.kpis[k]))}</td>`).join("")}
+    <td><details><summary>${esc(r.error||r.gym.function)}</summary><pre>${esc(JSON.stringify(r.gym.detail,null,1))}</pre><pre>${esc(r.output||"(no text)")}</pre>${r.tool_calls.length?`<pre>${esc(JSON.stringify(r.tool_calls,null,1))}</pre>`:""}${r.fallbacks.length?`<pre>${esc(r.fallbacks.join("\n"))}</pre>`:""}</details></td></tr>`).join("");
+}
+function renderHistory(){
+  $("board").innerHTML=(S.leaderboard||[]).map(b=>`<tr><td>${esc(b.agent)}</td><td>${esc(b.label)} ${b.prompt_is_default?'<span class="badge def">default</span>':'<span class="badge">edited</span>'}</td><td class="num">${b.runs}</td>
+    <td class="num"><span class="badge ${b.pass_rate>=.75?"pass":"fail"}">${pct(b.pass_rate)}</span></td><td class="num">${b.mean_reward.toFixed(2)}</td><td>${esc(kpiText(b.kpis))}</td><td class="num">${esc((b.last||"").slice(11,19))}</td></tr>`).join("")||'<tr><td colspan="7" class="muted">No runs yet.</td></tr>';
+  $("hist").innerHTML=(S.runs||[]).slice(0,200).map(r=>`<tr><td class="num">${esc(r.at.slice(11,19))}</td><td>${esc(r.agent)}</td><td>${esc(r.label)}</td><td>${esc(r.scenario)}</td>
+    <td class="num"><span class="badge ${r.gym_pass?"pass":"fail"}">${r.gym_reward.toFixed(2)}</span></td><td>${esc(kpiText(r.kpis))}</td><td><details><summary>view</summary><pre>${esc(r.error||r.output||"(no text)")}</pre></details></td></tr>`).join("")||'<tr><td colspan="7" class="muted">No runs yet.</td></tr>';
+}
+async function load(){
+  const r=await fetch("api/testlab"); if(!r.ok){$("status").textContent=(await r.json()).detail||"sign in as admin";return}
+  S=await r.json();
+  if(!$("agent").options.length){$("agent").innerHTML=S.agents.map(a=>`<option value="${a.key}">${esc(a.name)}${a.metrics.length?" — "+esc(a.metrics.join(", ")):""}</option>`).join("");
+    $("scen").innerHTML=S.scenarios.map(s=>`<label><input type="checkbox" value="${s.id}" checked> ${esc(s.label)}</label>`).join(""); pickAgent()}
+  renderHistory();
+}
+$("agent").onchange=pickAgent; $("prompt").oninput=syncDefault; $("reset").onclick=pickAgent;
+$("run").onclick=async()=>{
+  const scen=[...document.querySelectorAll("#scen input:checked")].map(i=>i.value);
+  if(!scen.length){$("status").textContent="Pick at least one scenario.";return}
+  $("run").disabled=true; const t0=Date.now(); $("status").textContent="Running on Nemotron…";
+  const tick=setInterval(()=>$("status").textContent=`Running on Nemotron… ${((Date.now()-t0)/1000).toFixed(0)} s`,1000);
+  try{const r=await fetch("api/testlab/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({agent:$("agent").value,prompt:$("prompt").value,label:$("label").value,scenarios:scen,repeats:+$("repeats").value||1})});
+    const d=await r.json(); if(!r.ok)throw new Error(d.detail||r.status); renderLatest(d); $("status").textContent=`Done in ${((Date.now()-t0)/1000).toFixed(1)} s · saved (and sent to Databricks gold.agent_test_runs when connected).`; await load();}
+  catch(e){$("status").textContent="Error: "+e.message}
+  clearInterval(tick); $("run").disabled=false;
+};
+load();
+</script>
+</body>
+</html>

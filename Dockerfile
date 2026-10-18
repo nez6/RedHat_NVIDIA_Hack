@@ -17,9 +17,10 @@ COPY app/ app/
 COPY pipeline/ pipeline/
 COPY data/ data/
 COPY scripts/send_portal_invites.py scripts/
+COPY resources_servers/estatepulse/rewards.py resources_servers/estatepulse/rewards.py
 
 # data/intake (client records, dev document fallback) and data/zillow (parsed listings) are writable volumes
-RUN mkdir -p data/intake data/zillow/saved data/listings_cache data/cities \
+RUN mkdir -p data/intake data/zillow/saved data/listings_cache data/cities data/testlab \
  && useradd --create-home --uid 10001 estatepulse && chown -R estatepulse /app && chmod 700 data/intake
 USER estatepulse
 
@@ -41,5 +42,5 @@ COPY databricks/ databricks/
 COPY scripts/ scripts/
 RUN pip install -r requirements-dev.txt && ruff check app pipeline tests && pytest -q
 
-# ---- runtime (default target): docker build . must produce the app image, not the test image
+# ---- runtime (default target): `docker build .` must produce the app image, not the test image
 FROM base AS runtime

@@ -221,6 +221,32 @@ def value(req: ValueRequest):
     return {"valuation": est, "finance": finance, "factors": factors}
 
 
+@app.get("/testlab")
+def testlab_page(request: Request):
+    return page(request, "testlab", "testlab.html")
+
+
+@app.get("/api/testlab")
+def testlab_state(request: Request):
+    """Agents, default prompts, KPI definitions, scenarios, run history and the per-prompt leaderboard."""
+    need(request, "system:diagnostics")
+    from . import testlab
+    return {**testlab.describe(), **testlab.history()}
+
+
+@app.post("/api/testlab/run")
+def testlab_run(body: dict, request: Request):
+    """Run one agent on live Nemotron with an (edited) prompt over the chosen scenarios; KPIs + NeMo Gym reward per run."""
+    need(request, "system:diagnostics")
+    from . import testlab
+    if body.get("agent") not in MA.BY_KEY:
+        raise HTTPException(400, f"agent must be one of {sorted(MA.BY_KEY)}")
+    try:
+        return testlab.run(body["agent"], body.get("prompt"), body.get("label") or "default", body.get("scenarios") or None, body.get("repeats") or 1)
+    except KeyError as e:
+        raise HTTPException(400, str(e))
+
+
 @app.get("/pipeline")
 def pipeline_page(request: Request):
     return page(request, "pipeline", "pipeline.html")
