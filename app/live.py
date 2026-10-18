@@ -6,7 +6,22 @@ DEFAULT_RATE = 6.5
 _cache = {}
 
 
+def _gold(name):
+    """DATA_SOURCE=databricks: serve safety / environment / FRED from the Unity Catalog gold layer (app/gold.py)."""
+    if name not in ("safety.json", "environment.json", "fred.json"):
+        return None
+    try:
+        from . import gold
+        snap = gold.active()
+    except Exception:
+        return None
+    return snap.get(name) if snap else None
+
+
 def _load(name):
+    g = _gold(name)
+    if g is not None:
+        return g
     path = os.path.join(LIVE_DIR, name)
     try:
         mtime = os.path.getmtime(path)
@@ -32,7 +47,7 @@ def fred_series(key):
 def mortgage_rate():
     s = fred_series("mortgage_30y")
     if s:
-        return s["value"], {"source": "FRED MORTGAGE30US", "as_of": s["date"]}
+        return s["value"], {"source": "FRED MORTGAGE30US" + (" via Databricks gold" if _gold("fred.json") else ""), "as_of": s["date"]}
     return DEFAULT_RATE, {"source": "default", "as_of": None}
 
 
@@ -68,4 +83,12 @@ def status():
             "live_environment_neighborhoods": len((_load("environment.json") or {}).get("neighborhoods") or {}),
             "databricks_configured": all(os.getenv(k) for k in ("DATABRICKS_HOST", "DATABRICKS_TOKEN", "DATABRICKS_WAREHOUSE_ID")),
             "databricks_catalog": os.getenv("DATABRICKS_CATALOG", "workspace"),
-            "databricks_last_sync": (m.get("sources", {}).get("databricks") or {}).get("run_id")}
+            "databricks_last_sync": (m.get("sources", {}).get("databricks") or {}).get("run_id"), **_source()}
+
+
+def _source():
+    try:
+        from . import gold
+        return gold.status()
+    except Exception:
+        return {"data_source": "local"}

@@ -72,6 +72,19 @@ class Client:
         return r
 
 
+def rows(c, statement, params=None):
+    """Run a query and return [{column: value}] (inline JSON result, follows extra chunks)."""
+    r = c.sql(statement, params)
+    cols = [x["name"] for x in ((r.get("manifest") or {}).get("schema") or {}).get("columns") or []]
+    data = list((r.get("result") or {}).get("data_array") or [])
+    nxt = (r.get("result") or {}).get("next_chunk_internal_link")
+    while nxt and not c.dry_run:
+        chunk = c.transport("GET", nxt, None)
+        data += chunk.get("data_array") or []
+        nxt = chunk.get("next_chunk_internal_link")
+    return [dict(zip(cols, d)) for d in data]
+
+
 def _load(name):
     with open(os.path.join(LIVE_DIR, name)) as f:
         return json.load(f)
@@ -116,13 +129,18 @@ def ddl(c):
         eval_id STRING, suite STRING COMMENT 'extraction | empty_data | pipeline', prompt STRING, expected STRING, nemotron_output STRING,
         shipped_output STRING, nemotron_exact BOOLEAN, shipped_pass BOOLEAN, latency_ms BIGINT, evaluated_at TIMESTAMP)
         COMMENT 'Per-case agent eval results: what Nemotron returned vs what the shipped (guarded) pipeline used.'""")
+    c.sql(f"""CREATE TABLE IF NOT EXISTS {fq('gold', 'architecture_validation')} (
+        validation_id STRING, category STRING COMMENT 'workspace | parity | agents | completeness | relevance', check_name STRING,
+        status STRING COMMENT 'pass | warn | fail', observed STRING, expected STRING, detail STRING, validated_at TIMESTAMP)
+        COMMENT 'scripts/architecture_validate.py: Databricks data quality, gold-vs-local parity, agents on gold, evidence completeness.'""")
 
 
 def governance(c):
     for t in [("bronze", "fred_observations"), ("bronze", "neighborhood_snapshots"), ("bronze", "listings_raw"),
               ("silver", "neighborhood_risk"), ("silver", "macro_latest"), ("gold", "listing_scores"),
               ("gold", "listing_scorecard"), ("gold", "pipeline_audit"), ("gold", "agent_decisions"), ("gold", "fred_series"),
-              ("gold", "match_results"), ("gold", "agent_eval_runs"), ("gold", "agent_eval_cases")]:
+              ("gold", "match_results"), ("gold", "agent_eval_runs"), ("gold", "agent_eval_cases"), ("gold", "jev_ready_neighborhoods"),
+              ("gold", "jev_ready_macro"), ("gold", "jev_ready_listings"), ("gold", "architecture_validation")]:
         kind = "VIEW" if t[1] in ("listing_scorecard", "fred_series") else "TABLE"
         tags = ", ".join(f"'{k}' = '{v}'" for k, v in {**TAGS, "layer": t[0]}.items())
         c.sql(f"ALTER {kind} {fq(*t)} SET TAGS ({tags})", ignore=("not supported", "NOT_SUPPORTED", "PERMISSION"))
@@ -157,6 +175,58 @@ def silver_gold(c):
         SELECT name, series_id, obs_date, value FROM (
           SELECT *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY obs_date DESC, ingested_at DESC) AS rn
           FROM {fq('bronze', 'fred_observations')}) WHERE rn = 1""")
+    # ---- gold: what the live app, the 5 scoring agents and Jev read (DATA_SOURCE=databricks, app/gold.py)
+    c.sql(f"""CREATE OR REPLACE TABLE {fq('gold', 'jev_ready_neighborhoods')}
+        COMMENT 'One row per neighborhood: reference profile + latest police + environment snapshots (JSON kept lossless for the app)' AS
+        WITH latest AS (
+          SELECT *, ROW_NUMBER() OVER (PARTITION BY neighborhood, source ORDER BY ingested_at DESC) AS rn
+          FROM {fq('bronze', 'neighborhood_snapshots')})
+        SELECT p.neighborhood, get_json_object(p.payload, '$.city') AS city,
+               CAST(get_json_object(p.payload, '$.lat') AS DOUBLE) AS lat, CAST(get_json_object(p.payload, '$.lon') AS DOUBLE) AS lon,
+               CAST(get_json_object(p.payload, '$.school_rating') AS INT) AS school_rating,
+               CAST(get_json_object(p.payload, '$.walk_score') AS INT) AS walk_score,
+               CAST(get_json_object(p.payload, '$.median_ppsf') AS INT) AS median_ppsf,
+               CAST(get_json_object(s.payload, '$.safety_index') AS INT) AS safety_index,
+               CAST(get_json_object(e.payload, '$.environment_index') AS INT) AS environment_index,
+               get_json_object(e.payload, '$.flood.zone') AS flood_zone,
+               p.payload AS profile_json, s.payload AS safety_json, e.payload AS environment_json,
+               GREATEST(p.ingested_at, coalesce(s.ingested_at, p.ingested_at), coalesce(e.ingested_at, p.ingested_at)) AS as_of,
+               p.run_id AS run_id
+        FROM latest p
+        LEFT JOIN latest s ON s.neighborhood = p.neighborhood AND s.source = 'police' AND s.rn = 1
+        LEFT JOIN latest e ON e.neighborhood = p.neighborhood AND e.source = 'environment' AND e.rn = 1
+        WHERE p.source = 'profile' AND p.rn = 1""")
+    c.sql(f"""CREATE OR REPLACE TABLE {fq('gold', 'jev_ready_macro')}
+        COMMENT 'Latest value + year-over-year change per FRED series (same definition as the app: N observations back)' AS
+        WITH f AS (
+          SELECT name, series_id, obs_date, value,
+                 CASE WHEN series_id LIKE 'MORTGAGE%' THEN LAG(value, 52) OVER (PARTITION BY series_id ORDER BY obs_date)
+                      WHEN series_id LIKE 'ATNHPI%' THEN LAG(value, 4) OVER (PARTITION BY series_id ORDER BY obs_date)
+                      ELSE LAG(value, 12) OVER (PARTITION BY series_id ORDER BY obs_date) END AS prev,
+                 ROW_NUMBER() OVER (PARTITION BY series_id ORDER BY obs_date DESC) AS rn
+          FROM (SELECT * FROM {fq('bronze', 'fred_observations')}
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY series_id, obs_date ORDER BY ingested_at DESC) = 1))
+        SELECT name, series_id, obs_date, ROUND(value, 4) AS value,
+               CASE WHEN prev IS NOT NULL AND prev <> 0 THEN ROUND((value / prev - 1) * 100, 2) END AS yoy_pct,
+               current_timestamp() AS built_at
+        FROM f WHERE rn = 1""")
+    c.sql(f"""CREATE OR REPLACE TABLE {fq('gold', 'jev_ready_listings')}
+        COMMENT 'Gold: one row per listing with neighborhood features, live mortgage rate, metro HPI trend and the 10 sub-scores. Jev / client-facing.' AS
+        WITH s AS (SELECT * FROM {fq('gold', 'listing_scores')} WHERE run_id = (SELECT max_by(run_id, scored_at) FROM {fq('gold', 'listing_scores')})),
+             m AS (SELECT max(CASE WHEN name = 'mortgage_30y' THEN value END) AS mortgage_30y,
+                          max(CASE WHEN name = 'raleigh_hpi' THEN yoy_pct END) AS raleigh_yoy,
+                          max(CASE WHEN name = 'durham_hpi' THEN yoy_pct END) AS durham_yoy
+                   FROM {fq('gold', 'jev_ready_macro')})
+        SELECT l.listing_id, l.address, l.neighborhood, l.city, l.price, l.beds, l.baths, l.sqft, l.year_built, l.hoa_monthly, l.property_type,
+               n.school_rating, n.walk_score, n.median_ppsf, n.safety_index, n.environment_index, n.flood_zone,
+               ROUND(l.price / l.sqft / n.median_ppsf * 100 - 100, 1) AS price_vs_area_pct, m.mortgage_30y,
+               IF(l.city IN ('Durham', 'Chapel Hill', 'Carrboro'), m.durham_yoy, m.raleigh_yoy) AS metro_hpi_yoy_pct,
+               map_from_entries(collect_list(struct(s.metric, s.score))) AS scores, current_timestamp() AS published_at
+        FROM (SELECT * FROM {fq('bronze', 'listings_raw')} QUALIFY ROW_NUMBER() OVER (PARTITION BY listing_id ORDER BY ingested_at DESC) = 1) l
+        CROSS JOIN m
+        LEFT JOIN {fq('gold', 'jev_ready_neighborhoods')} n ON n.neighborhood = l.neighborhood
+        LEFT JOIN s ON s.listing_id = l.listing_id
+        GROUP BY ALL""")
     c.sql(f"""CREATE OR REPLACE VIEW {fq('gold', 'fred_series')}
         COMMENT 'FRED macro data (mortgage rates, Triangle house-price indexes, unemployment): one row per series and date, latest ingest wins' AS
         SELECT name, series_id, obs_date, value, ingested_at FROM {fq('bronze', 'fred_observations')}
@@ -218,6 +288,11 @@ def load(c, run_id, now):
                 snaps.append({"neighborhood": hood, "source": source, "payload": json.dumps(payload)})
         except FileNotFoundError:
             pass
+    try:  # neighborhood reference profiles (school / walkability / price per sq ft, with their sources)
+        with open(os.path.join(DATA_DIR, "neighborhoods.json")) as f:
+            snaps += [{"neighborhood": h["name"], "source": "profile", "payload": json.dumps(h)} for h in json.load(f)]
+    except FileNotFoundError:
+        pass
     counts["neighborhood_snapshots"] = _insert_json(
         c, fq("bronze", "neighborhood_snapshots"), snaps, "ARRAY<STRUCT<neighborhood:STRING,source:STRING,payload:STRING>>",
         f"r.neighborhood, r.source, r.payload, '{run_id}', TIMESTAMP '{now}'")

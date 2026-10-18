@@ -506,3 +506,27 @@ The crew is tested against three failure modes. The tests in `tests/test_agent_q
 | `estatepulse_gold.agent_eval_cases` | Per-test-case results: what Nemotron returned vs what the shipped pipeline used. |
 
 Refresh with `python -m pipeline.databricks_sink`, which pulls the full FRED history (`FRED_HISTORY_YEARS`, default 10), and `python scripts/agent_eval.py`, which writes to Databricks automatically; `--no-databricks` skips that.
+
+## Architecture validation cycle (Databricks gold → agents → Jev)
+
+**How data flows.** `python -m pipeline.databricks_sink` loads the bronze tables (FRED history, police and environment snapshots, neighborhood profiles, listings), builds silver, then builds the gold tables the app reads:
+- `gold.jev_ready_neighborhoods`: the reference profile plus the latest police and environment snapshot for each neighborhood
+- `gold.jev_ready_macro`: the latest value and year-over-year change for each FRED series, using the same definition as the app
+- `gold.jev_ready_listings`: features plus scores for each listing, for Jev and client views
+
+**Live app reads gold.** With `DATA_SOURCE=databricks` (set in `scripts/restart_app.sh`), the 5 scoring agents and Jev read safety, environment, school, walkability, price per sq ft and FRED values from gold (`app/gold.py`).
+- The data is fetched in the background at startup and refreshed every `GOLD_TTL_SECS` (default 600).
+- A search never waits on the warehouse. Until gold is loaded, or if Databricks is unreachable, the app uses its local snapshot.
+- The pipeline log and `/api/data-status` show which source was used and how current the gold data is.
+
+**`python scripts/architecture_validate.py`** syncs, then checks five things:
+
+| Check | What it verifies |
+|---|---|
+| Workspace | Expected tables only, no empty tables, no nulls in key columns, no duplicate listings, scores and indexes in range, every listing scored on all 10 metrics, FRED fresh for each series' release schedule, every neighborhood present in gold. Read-only: it prints suggested cleanup SQL but deletes nothing. |
+| Parity | The neighborhood features and FRED values in gold equal what the app computed locally |
+| Agents | For the same homes and buyer, the 10 scores, the ranking and Jev's verdicts from gold equal those from local data. The full 6-agent pipeline then runs on gold with Nemotron. |
+| Completeness | The share of each agent's evidence that comes from a real source rather than a sample, default or estimate |
+| Relevance | Nemotron rates each scoring agent's evidence as complete, partial or insufficient for that agent's question |
+
+Results are saved to `gold.architecture_validation` (one row per check) and `results/architecture_validation.json`.

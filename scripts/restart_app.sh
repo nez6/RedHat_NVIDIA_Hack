@@ -8,7 +8,7 @@ mkdir -p data/cities
 docker rm -f estatepulse >/dev/null 2>&1 || true
 docker run -d --name estatepulse --network host --restart unless-stopped \
   --env-file "$HOME/.estatepulse.env" \
-  -e NEMOTRON_BASE_URL="${NEMOTRON_BASE_URL:-http://localhost:8000/v1}" \
+  -e DATA_SOURCE="${DATA_SOURCE:-databricks}" -e NEMOTRON_BASE_URL="${NEMOTRON_BASE_URL:-http://localhost:8000/v1}" \
   -v "$PWD/data/live:/app/data/live:ro" -v "$PWD/data/zillow:/app/data/zillow" \
   -v estatepulse_intake:/app/data/intake -v "$PWD/data/cities:/app/data/cities" \
   "estatepulse-app:$TAG" >/dev/null

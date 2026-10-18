@@ -164,7 +164,7 @@ function log(html){$("log").insertAdjacentHTML("beforeend",html+"<br>");$("log")
 const t0={};
 function onEvent(e){
   switch(e.type){
-    case "start": log(e.health.ok?`model <b>${e.health.model}</b> @ ${e.health.base_url} · ${e.agents} agents`:`<span class="fb">Nemotron unreachable — fallbacks active</span>`); setAgent("Buyer Profile","run","reading…"); break;
+    case "start": log(e.health.ok?`model <b>${e.health.model}</b> @ ${e.health.base_url} · ${e.agents} agents · data: <b>${esc((e.data&&e.data.data_source)||"local")}</b>${e.data&&e.data.gold_as_of?" (as of "+esc(e.data.gold_as_of.slice(0,16))+")":""}`:`<span class="fb">Nemotron unreachable — fallbacks active</span>`); setAgent("Buyer Profile","run","reading…"); break;
     case "llm": setAgent(e.agent,"run",`LLM ${e.ms} ms${e.tool_calls.length?" → "+e.tool_calls.length+" tool call(s)":""}`); log(`<span class="a">${e.agent}</span> nemotron ${e.ms}ms ${e.tool_calls.join(", ")}`); break;
     case "tool": log(`&nbsp;&nbsp;↳ ${e.tool}(${JSON.stringify(e.args)}) ${e.ms}ms → ${typeof e.result_preview=="string"?e.result_preview:JSON.stringify(e.result_preview)}`); break;
     case "fallback": setAgent(e.agent,"fb","fallback: "+e.reason.slice(0,40)); log(`<span class="fb">${e.agent} fallback: ${e.reason}</span>`); break;

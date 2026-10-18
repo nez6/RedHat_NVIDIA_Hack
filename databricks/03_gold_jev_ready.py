@@ -54,9 +54,9 @@ for t in ("jev_ready_listings",):
         spark.sql(f"ALTER TABLE {G}.`{t}` SET TAGS ('project' = 'estatepulse', 'layer' = 'gold', 'pii' = 'none', 'consumer' = 'jev')")
     except Exception as e:
         print("tags skipped:", str(e)[:120])
-spark.sql(f"""CREATE TABLE IF NOT EXISTS {G}.`pipeline_audit` (run_id STRING, layer STRING, table_name STRING, row_count BIGINT, logged_at TIMESTAMP)
+spark.sql(f"""CREATE TABLE IF NOT EXISTS {G}.`elt_audit` (run_id STRING, layer STRING, table_name STRING, row_count BIGINT, logged_at TIMESTAMP)
               COMMENT 'Audit trail of every ELT run'""")
-spark.sql(f"""INSERT INTO {G}.`pipeline_audit` VALUES
+spark.sql(f"""INSERT INTO {G}.`elt_audit` VALUES
   ('{RUN_ID}', 'silver', 'listing_factors', {len(factor_rows)}, current_timestamp()),
   ('{RUN_ID}', 'silver', 'neighborhood_indexes', {len(hood_rows)}, current_timestamp()),
   ('{RUN_ID}', 'gold', 'jev_ready_listings', {len(rows)}, current_timestamp())""")

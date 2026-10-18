@@ -15,6 +15,14 @@ from pipeline.sources import redfin as RF
 from pipeline.sources import zillow as Z
 
 app = FastAPI(title="DreamHome AI (Nemotron)")
+
+
+@app.on_event("startup")
+def _warm_gold():
+    """DATA_SOURCE=databricks: start fetching the gold snapshot in the background (requests never wait on it)."""
+    from . import gold
+    if gold.wanted():
+        gold.refresh()
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 
 
