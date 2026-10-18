@@ -245,7 +245,7 @@ env/bin/python -m pytest -q                # 189 tests, no GPU or network needed
 
 | Name | Role | Contact |
 |---|---|---|
-| [name] | [role] | [contact] |
+| Natalie Zachariah | Solo Builder | nez6@duke.edu |
 
 ---
 
